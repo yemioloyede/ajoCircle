@@ -19,12 +19,14 @@ const authLimiter = rateLimit({
 const phoneSchema = z.string().regex(/^(\+?234|0)[0-9]{10}$/, 'Invalid Nigerian phone number');
 
 r.post('/register', authLimiter, async (req, res) => {
+  // Accept both camelCase (fullName) and snake_case (full_name)
+  const body = { ...req.body, fullName: req.body.fullName ?? req.body.full_name };
   const s = z.object({
     fullName: z.string().min(2).max(100),
     email: z.string().email().max(200),
     phone: phoneSchema,
     password: z.string().min(8).max(128),
-  }).parse(req.body);
+  }).parse(body);
 
   const email = s.email.toLowerCase().trim();
   const phone = s.phone.trim();

@@ -70,7 +70,8 @@ app.use((err: any, req: any, res: any, _next: any) => {
   const isZodError = err?.name === 'ZodError';
   const status = isZodError ? 422 : err.status || 500;
   if (!isZodError) console.error(JSON.stringify({ level: 'ERROR', path: req.path, error: err.message, stack: err.stack }));
-  res.status(status).json({ error: isZodError ? err.errors[0]?.message || 'Validation failed' : err.message || 'Request failed' });
+  const zodMsg = isZodError ? (err.issues?.[0]?.message || err.errors?.[0]?.message || 'Validation failed') : null;
+  res.status(status).json({ error: isZodError ? zodMsg : err.message || 'Request failed' });
 });
 
 app.listen(env.port, () => console.log(JSON.stringify({ level: 'INFO', message: `AjoCircle API running on port ${env.port}`, env: env.nodeEnv })));

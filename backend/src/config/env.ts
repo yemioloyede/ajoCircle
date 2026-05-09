@@ -3,7 +3,7 @@ dotenv.config();
 
 const isProd = process.env.NODE_ENV === 'production';
 
-function require(key: string, fallback?: string): string {
+function getEnv(key: string, fallback?: string): string {
   const val = process.env[key] ?? fallback;
   if (!val) throw new Error(`Missing required environment variable: ${key}`);
   return val;
@@ -21,7 +21,7 @@ if (isProd && !encryptionKey) {
 
 export const env = {
   port: Number(process.env.PORT || 5000),
-  databaseUrl: require('DATABASE_URL', 'postgresql://localhost:5432/ajocircle'),
+  databaseUrl: getEnv('DATABASE_URL', 'postgresql://localhost:5432/ajocircle'),
   jwtSecret,
   encryptionKey,
   appOrigin: process.env.APP_ORIGIN || 'http://localhost:3000',
