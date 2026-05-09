@@ -1,8 +1,7 @@
 {
-  "buildCommand": "cd apps/admin && npm install && npm run build",
+  "buildCommand": "npm --prefix apps/admin run build",
   "outputDirectory": "apps/admin/.next",
-  "installCommand": "cd apps/admin && npm install",
-  "framework": "nextjs",
+  "installCommand": "npm --prefix apps/admin install",
   "env": {
     "NEXT_PUBLIC_API_URL": "https://ajocircle.onrender.com"
   }
