@@ -1,7 +1,11 @@
 {
-  "buildCommand": "npm --prefix apps/admin run build",
-  "outputDirectory": "apps/admin/.next",
-  "installCommand": "npm --prefix apps/admin install",
+  "version": 2,
+  "builds": [
+    {
+      "src": "apps/admin/package.json",
+      "use": "@vercel/next"
+    }
+  ],
   "env": {
     "NEXT_PUBLIC_API_URL": "https://ajocircle.onrender.com"
   }
