@@ -1,0 +1,10 @@
+{
+  "name": "ajocircle-full",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install --prefix backend && npm install --prefix apps/admin && npm install --prefix apps/mobile",
+    "dev:backend": "npm run dev --prefix backend",
+    "dev:admin": "npm run dev --prefix apps/admin",
+    "dev:mobile": "npm run start --prefix apps/mobile"
+  }
+}

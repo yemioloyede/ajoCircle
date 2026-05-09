@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "AjoCircle",
+    "slug": "ajocircle",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "extra": {
+      "apiUrl": "http://localhost:5000"
+    }
+  }
+}

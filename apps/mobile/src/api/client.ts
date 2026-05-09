@@ -1,0 +1,20 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
+
+export const API_URL: string =
+  (Constants.expoConfig?.extra?.apiUrl as string) || 'http://localhost:5000';
+
+export async function api(path: string, options: any = {}) {
+  const token = await AsyncStorage.getItem('token');
+  const r = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || 'Request failed');
+  return j;
+}
