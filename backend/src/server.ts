@@ -51,8 +51,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check
+// Health check (also at /api/health for Render)
 app.get('/health', (_, res) => res.json({ ok: true, service: 'AjoCircle API', env: env.nodeEnv }));
+app.get('/api/health', (_, res) => res.json({ ok: true, service: 'AjoCircle API', env: env.nodeEnv }));
 
 // Routes
 app.use('/api/auth', auth);
