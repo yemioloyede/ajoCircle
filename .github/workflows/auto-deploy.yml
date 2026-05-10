@@ -12,28 +12,60 @@ on:
   workflow_dispatch:
 
 jobs:
+  check-hooks:
+    name: Check Deploy Hook Secrets
+    runs-on: ubuntu-latest
+    outputs:
+      has_vercel: ${{ steps.check.outputs.has_vercel }}
+      has_render: ${{ steps.check.outputs.has_render }}
+    steps:
+      - name: Check hook secret presence
+        id: check
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -n "$VERCEL_DEPLOY_HOOK_URL" ]; then
+            echo "has_vercel=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_vercel=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "has_render=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_render=false" >> "$GITHUB_OUTPUT"
+          fi
+
   deploy-admin:
     name: Deploy Admin (Vercel)
     runs-on: ubuntu-latest
-    if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL != '' }}
+    needs: check-hooks
+    if: ${{ needs.check-hooks.outputs.has_vercel == 'true' }}
     steps:
       - name: Trigger Vercel deploy hook
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
         run: |
-          curl -fsS -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
+          curl -fsS -X POST "$VERCEL_DEPLOY_HOOK_URL"
 
   deploy-backend:
     name: Deploy Backend (Render)
     runs-on: ubuntu-latest
-    if: ${{ secrets.RENDER_DEPLOY_HOOK_URL != '' }}
+    needs: check-hooks
+    if: ${{ needs.check-hooks.outputs.has_render == 'true' }}
     steps:
       - name: Trigger Render deploy hook
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
         run: |
-          curl -fsS -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          curl -fsS -X POST "$RENDER_DEPLOY_HOOK_URL"
 
   notify-missing-secrets:
     name: Missing Hook Secrets
     runs-on: ubuntu-latest
-    if: ${{ secrets.VERCEL_DEPLOY_HOOK_URL == '' || secrets.RENDER_DEPLOY_HOOK_URL == '' }}
+    needs: check-hooks
+    if: ${{ needs.check-hooks.outputs.has_vercel != 'true' || needs.check-hooks.outputs.has_render != 'true' }}
     steps:
       - name: Print setup reminder
         run: |
