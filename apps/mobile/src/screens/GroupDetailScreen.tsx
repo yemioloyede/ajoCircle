@@ -32,6 +32,8 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
   const [historyTypeFilter, setHistoryTypeFilter] = useState<'ALL' | 'CONTRIBUTION' | 'PAYOUT'>('ALL');
   const [historyStatusFilter, setHistoryStatusFilter] = useState<'ALL' | 'SUCCESSFUL' | 'PENDING' | 'FAILED'>('ALL');
   const [historyVisibleCount, setHistoryVisibleCount] = useState(12);
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
   async function load() {
     try {
@@ -100,6 +102,12 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
   useEffect(() => {
     setHistoryVisibleCount(12);
   }, [historyQuery, historyTypeFilter, historyStatusFilter, tab]);
+  useEffect(() => {
+    if (tab !== 'history') {
+      setShowTypeDropdown(false);
+      setShowStatusDropdown(false);
+    }
+  }, [tab]);
   const completion = analytics?.completionRate ?? 0;
   const activeMembers = analytics?.activeMemberCount ?? members.length ?? 0;
   const potKobo = analytics?.totalContributionsKobo ?? group?.total_pot_kobo ?? 0;
@@ -363,43 +371,68 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
               onChangeText={setHistoryQuery}
               style={{ marginTop: 10 }}
             />
-            <View style={{ marginTop: 10, flexDirection: 'row', gap: 8 }}>
-              {(['ALL', 'CONTRIBUTION', 'PAYOUT'] as const).map((item) => (
+            <View style={{ marginTop: 10, flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: theme.colors.muted, fontSize: 11, marginBottom: 6 }}>Type</Text>
                 <TouchableOpacity
-                  key={item}
-                  onPress={() => setHistoryTypeFilter(item)}
+                  onPress={() => { setShowTypeDropdown((v) => !v); setShowStatusDropdown(false); }}
                   style={{
-                    height: 34,
+                    height: 42,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
                     paddingHorizontal: 12,
-                    borderRadius: 17,
-                    borderWidth: 1,
-                    borderColor: historyTypeFilter === item ? theme.colors.primary : theme.colors.border,
-                    backgroundColor: historyTypeFilter === item ? '#2A3037' : 'transparent',
+                    flexDirection: 'row',
                     alignItems: 'center',
-                    justifyContent: 'center',
+                    justifyContent: 'space-between',
                   }}>
-                  <Text style={{ color: historyTypeFilter === item ? theme.colors.text : theme.colors.muted, fontSize: 12, fontWeight: '800' }}>{item}</Text>
+                  <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 12 }}>{historyTypeFilter}</Text>
+                  <Text style={{ color: theme.colors.muted }}>{showTypeDropdown ? '▴' : '▾'}</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-            <View style={{ marginTop: 8, flexDirection: 'row', gap: 8 }}>
-              {(['ALL', 'SUCCESSFUL', 'PENDING', 'FAILED'] as const).map((item) => (
+                {showTypeDropdown ? (
+                  <View style={{ marginTop: 6, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10, backgroundColor: theme.colors.surface }}>
+                    {(['ALL', 'CONTRIBUTION', 'PAYOUT'] as const).map((item) => (
+                      <TouchableOpacity
+                        key={item}
+                        onPress={() => { setHistoryTypeFilter(item); setShowTypeDropdown(false); }}
+                        style={{ paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: item === 'PAYOUT' ? 0 : 1, borderBottomColor: theme.colors.border }}>
+                        <Text style={{ color: theme.colors.text, fontSize: 12, fontWeight: historyTypeFilter === item ? '800' : '500' }}>{item}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: theme.colors.muted, fontSize: 11, marginBottom: 6 }}>Status</Text>
                 <TouchableOpacity
-                  key={item}
-                  onPress={() => setHistoryStatusFilter(item)}
+                  onPress={() => { setShowStatusDropdown((v) => !v); setShowTypeDropdown(false); }}
                   style={{
-                    height: 30,
-                    paddingHorizontal: 10,
-                    borderRadius: 15,
+                    height: 42,
+                    borderRadius: 10,
                     borderWidth: 1,
-                    borderColor: historyStatusFilter === item ? theme.colors.primary : theme.colors.border,
-                    backgroundColor: historyStatusFilter === item ? '#2A3037' : 'transparent',
+                    borderColor: theme.colors.border,
+                    paddingHorizontal: 12,
+                    flexDirection: 'row',
                     alignItems: 'center',
-                    justifyContent: 'center',
+                    justifyContent: 'space-between',
                   }}>
-                  <Text style={{ color: historyStatusFilter === item ? theme.colors.text : theme.colors.muted, fontSize: 11, fontWeight: '800' }}>{item}</Text>
+                  <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 12 }}>{historyStatusFilter}</Text>
+                  <Text style={{ color: theme.colors.muted }}>{showStatusDropdown ? '▴' : '▾'}</Text>
                 </TouchableOpacity>
-              ))}
+                {showStatusDropdown ? (
+                  <View style={{ marginTop: 6, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10, backgroundColor: theme.colors.surface }}>
+                    {(['ALL', 'SUCCESSFUL', 'PENDING', 'FAILED'] as const).map((item) => (
+                      <TouchableOpacity
+                        key={item}
+                        onPress={() => { setHistoryStatusFilter(item); setShowStatusDropdown(false); }}
+                        style={{ paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: item === 'FAILED' ? 0 : 1, borderBottomColor: theme.colors.border }}>
+                        <Text style={{ color: theme.colors.text, fontSize: 12, fontWeight: historyStatusFilter === item ? '800' : '500' }}>{item}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
             </View>
             <View style={{ marginTop: 12, borderRadius: 20, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 16 }}>
             {visibleHistory.length ? visibleHistory.map((entry: any) => (
