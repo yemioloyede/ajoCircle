@@ -78,9 +78,9 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
   );
   const canManageMembers = myMembership?.role === 'GROUP_ADMIN';
   const isFinished = !!schedule?.isFinished;
-  const configuredSlots = Number(schedule?.totalRounds ?? group?.max_members ?? 0);
+  const configuredSlots = Number(group?.max_members ?? schedule?.totalRounds ?? 0);
   const filledSlots = members.filter((m: any) => (m.status || 'ACTIVE') === 'ACTIVE').length;
-  const completedPayoutSlots = Number(schedule?.completedRounds ?? 0);
+  const completedPayoutSlots = Math.min(Number(schedule?.completedRounds ?? 0), Math.max(configuredSlots, 0));
   const projectedEndDate = schedule?.projectedEndDate
     ? new Date(schedule.projectedEndDate)
     : null;
