@@ -10,7 +10,8 @@ async function forward(req: NextRequest, ctx: Ctx, method: string) {
 
   const qs = req.nextUrl.search || '';
   const joined = (ctx.params.path || []).join('/');
-  const url = `${API}/${joined}${qs}`;
+  const upstreamPath = joined.startsWith('api/') ? `/${joined}` : `/api/${joined}`;
+  const url = `${API}${upstreamPath}${qs}`;
 
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,

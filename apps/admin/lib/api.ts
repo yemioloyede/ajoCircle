@@ -2,7 +2,8 @@ const API = '';
 
 function toProxyPath(path: string) {
   const clean = path.startsWith('/') ? path.slice(1) : path;
-  return `/api/proxy/${clean}`;
+  const normalized = clean.startsWith('api/') ? clean.slice(4) : clean;
+  return `/api/proxy/${normalized}`;
 }
 
 export async function api(path: string, options: RequestInit = {}) {
