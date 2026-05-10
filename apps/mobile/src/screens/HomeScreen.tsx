@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { View, Text, ScrollView, RefreshControl, ActivityIndicator, Linking, Alert } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, ActivityIndicator, Linking, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { AvatarBadge, Button, Card, Input, MetricCard, Pill, SectionHeader } from '../components/ui';
+import { Button, Input } from '../components/ui';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { theme } from '../theme';
@@ -18,16 +18,33 @@ export default function HomeScreen({ navigation }: Props) {
   const [invite, setInvite] = useState('');
   const [joining, setJoining] = useState(false);
   const [err, setErr] = useState('');
+  const [totalSavedKobo, setTotalSavedKobo] = useState(0);
   const [pendingRef, setPendingRef] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [confirmErr, setConfirmErr] = useState('');
 
   const load = useCallback(async () => {
-    try {
-      const j = await api('/api/groups');
+    const [groupsRes, summaryRes, ledgerRes] = await Promise.allSettled([
+      api('/api/groups'),
+      api('/api/contributions/summary'),
+      api('/api/ledger/me'),
+    ]);
+
+    if (groupsRes.status === 'fulfilled') {
+      const j = groupsRes.value;
       setGroups(Array.isArray(j) ? j : j.groups || []);
-    } catch {
+    } else {
       setGroups([]);
+    }
+
+    if (summaryRes.status === 'fulfilled') {
+      const summary = summaryRes.value as any;
+      setTotalSavedKobo(Number(summary.totalSavedKobo ?? summary.total_saved_kobo ?? 0));
+    } else if (ledgerRes.status === 'fulfilled') {
+      const j = ledgerRes.value as any;
+      setTotalSavedKobo(Number(j.balanceKobo ?? j.balance_kobo ?? 0));
+    } else {
+      setTotalSavedKobo(0);
     }
   }, []);
 
@@ -41,13 +58,24 @@ export default function HomeScreen({ navigation }: Props) {
     load().finally(() => setLoading(false));
   }, [load]);
 
-  const totalCommittedKobo = useMemo(
-    () => groups.reduce((sum, group) => sum + Number(group.contribution_amount_kobo || 0), 0),
-    [groups],
-  );
+  const totalCommittedKobo = useMemo(() => totalSavedKobo, [totalSavedKobo]);
+
+  function normalizeInviteCode(input: string) {
+    const value = input.trim();
+    if (!value) return '';
+    if (!value.includes('://') && !value.includes('?')) return value;
+    try {
+      const parsed = new URL(value);
+      const code = parsed.searchParams.get('code') || parsed.searchParams.get('inviteCode');
+      return (code || value).trim();
+    } catch {
+      return value;
+    }
+  }
 
   async function join() {
-    if (!invite.trim()) {
+    const inviteCode = normalizeInviteCode(invite);
+    if (!inviteCode) {
       setErr('Enter an invite code');
       return;
     }
@@ -55,7 +83,7 @@ export default function HomeScreen({ navigation }: Props) {
     setJoining(true);
     setErr('');
     try {
-      await api('/api/groups/join', { method: 'POST', body: JSON.stringify({ inviteCode: invite.trim() }) });
+      await api('/api/groups/join', { method: 'POST', body: JSON.stringify({ inviteCode }) });
       setInvite('');
       await load();
     } catch (e: any) {
@@ -131,27 +159,22 @@ export default function HomeScreen({ navigation }: Props) {
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['left', 'right', 'top']}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.xl * 2 }}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 44 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.colors.primary} />}>
-        <Card style={{ backgroundColor: theme.colors.primaryDark, borderColor: theme.colors.primaryDark }}>
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-            <View style={{ flex: 1, paddingRight: theme.spacing.md }}>
-              <Pill label="Live dashboard" tone="primary" />
-              <Text style={{ marginTop: theme.spacing.sm, fontSize: 28, lineHeight: 34, fontWeight: '900', color: theme.colors.white }}>
-                Good morning{user?.full_name ? `, ${user.full_name.split(' ')[0]}` : ''}
-              </Text>
-              <Text style={{ marginTop: theme.spacing.xs, color: 'rgba(255,255,255,0.88)', lineHeight: 20 }}>
-                Keep track of your savings circles, upcoming contributions, and payout rotations.
-              </Text>
-            </View>
-            <AvatarBadge initials={userInitials} tone="accent" />
+        <View style={{ marginTop: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <View>
+            <Text style={{ color: theme.colors.muted, fontSize: 13 }}>Good morning,</Text>
+            <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '900', lineHeight: 24, marginTop: 4 }}>{user?.full_name || 'Ajo User'}</Text>
           </View>
-        </Card>
+          <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center', marginTop: 6 }}>
+            <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '800' }}>{userInitials}</Text>
+          </View>
+        </View>
 
         {err ? <Text style={{ color: theme.colors.danger, marginBottom: theme.spacing.sm, fontWeight: '700' }}>{err}</Text> : null}
 
         {pendingRef ? (
-          <Card style={{ backgroundColor: '#FFF8E8', borderColor: '#F3D7A8' }}>
+          <View style={{ backgroundColor: '#2A2115', borderColor: '#5B4A31', borderWidth: 1, borderRadius: 20, padding: 16, marginTop: 18 }}>
             <Text style={{ fontWeight: '900', color: theme.colors.text }}>Payment opened in browser</Text>
             <Text style={{ marginTop: 4, color: theme.colors.muted, lineHeight: 20 }}>
               Once you have completed payment on Paystack, tap below to confirm it and update your balance.
@@ -160,84 +183,102 @@ export default function HomeScreen({ navigation }: Props) {
             {confirmErr ? (
               <Text style={{ marginTop: 8, color: theme.colors.danger, fontWeight: '700', lineHeight: 20 }}>{confirmErr}</Text>
             ) : null}
-            {confirming
-              ? <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 12 }} />
-              : <Button title="I've paid — confirm payment" onPress={confirmPayment} />}
+            {confirming ? <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 12 }} /> : <Button title="I've paid — confirm payment" onPress={confirmPayment} />}
             <Button title="Dismiss" onPress={() => { setPendingRef(null); setConfirmErr(''); }} variant="ghost" />
-          </Card>
+          </View>
         ) : null}
 
-        <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-          <MetricCard label="Active Circles" value={String(groups.length)} helper="Groups you belong to" tone="success" />
-          <MetricCard label="Committed Value" value={`₦${(totalCommittedKobo / 100).toLocaleString()}`} helper="Total contributions per cycle" tone="accent" />
+        <View style={{ flexDirection: 'row', gap: 14, marginTop: 18 }}>
+          <MiniMetric title="Total Saved" value={`₦${(totalCommittedKobo / 100).toLocaleString()}`} />
+          <MiniMetric title="Active Circles" value={String(groups.length)} />
         </View>
 
-        <SectionHeader title="Upcoming Deadlines" actionLabel="Create circle" onAction={() => navigation?.navigate('CreateCircle')} />
-        {activeGroup ? (
-          <Card style={{ backgroundColor: theme.colors.primary, borderColor: theme.colors.primary }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.md }}>
-              <View style={{ width: 54, height: 54, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: theme.colors.white, fontSize: 24 }}>⟳</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: 'rgba(255,255,255,0.82)', fontSize: 12, fontWeight: '700' }}>Group: {activeGroup.name}</Text>
-                <Text style={{ color: theme.colors.white, fontSize: 16, fontWeight: '800', marginTop: 2 }}>{upcomingLabel}</Text>
-              </View>
-            </View>
-            <View style={{ marginTop: theme.spacing.md, flexDirection: 'row', gap: theme.spacing.sm }}>
-              <Button title="Pay Now" onPress={() => pay(activeGroup.id)} variant="secondary" style={{ flex: 1, marginVertical: 0 }} />
-              <Button title="Details" onPress={() => navigation?.navigate('GroupDetail', { groupId: activeGroup.id })} variant="outline" style={{ flex: 1, marginVertical: 0 }} />
-            </View>
-          </Card>
-        ) : (
-          <Card>
-            <Text style={{ fontSize: 18, fontWeight: '900', color: theme.colors.text }}>No active circles yet</Text>
-            <Text style={{ marginTop: 4, color: theme.colors.muted, lineHeight: 20 }}>Create your first circle or join one with an invite code to begin saving.</Text>
-          </Card>
-        )}
+        <View style={{ marginTop: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '900' }}>Upcoming Deadlines</Text>
+          <TouchableOpacity onPress={() => activeGroup ? navigation?.navigate('GroupDetail', { groupId: activeGroup.id }) : navigation?.navigate('CreateCircle')}>
+            <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '800' }}>View All</Text>
+          </TouchableOpacity>
+        </View>
 
-        <SectionHeader title="Your Active Circles" actionLabel="Create circle" onAction={() => navigation?.navigate('CreateCircle')} />
-        {groups.length === 0 ? (
-          <Card>
-            <Text style={{ color: theme.colors.muted }}>No circles yet. Start one below or join via code.</Text>
-          </Card>
-        ) : groups.map(group => (
-          <Card key={group.id}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: theme.spacing.md }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 18, fontWeight: '900', color: theme.colors.text }}>{group.name}</Text>
-                <Text style={{ marginTop: 2, color: theme.colors.muted }}>{group.frequency} • ₦{(group.contribution_amount_kobo / 100).toLocaleString()}</Text>
-                <Text style={{ marginTop: 4, color: theme.colors.mutedSoft, fontSize: 12 }}>Invite code: {group.invite_code}</Text>
+        {activeGroup ? (
+          <View style={{ marginTop: 14, borderRadius: 24, backgroundColor: theme.colors.primary, padding: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <View style={{ width: 66, height: 66, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.12)', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: theme.colors.white, fontSize: 16 }}>📅</Text>
+                </View>
+                <View style={{ marginLeft: 14, flex: 1 }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '700' }}>Group: {activeGroup.name}</Text>
+                  <Text style={{ color: theme.colors.white, fontSize: 16, fontWeight: '900', lineHeight: 22, marginTop: 6 }}>{upcomingLabel.replace(' due soon', '')}</Text>
+                </View>
               </View>
-              <Pill label={group.status || 'ACTIVE'} tone={group.status === 'ACTIVE' ? 'success' : 'warning'} />
+              <TouchableOpacity onPress={() => pay(activeGroup.id)} style={{ width: 120, height: 52, borderRadius: 12, backgroundColor: theme.colors.secondary, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#18212C', fontWeight: '800', fontSize: 13 }}>Pay Now</Text>
+              </TouchableOpacity>
             </View>
-            <View style={{ flexDirection: 'row', gap: theme.spacing.sm, marginTop: theme.spacing.md }}>
-              <Button title="Contribute" onPress={() => pay(group.id)} style={{ flex: 1, marginVertical: 0 }} />
-              <Button title="Details" onPress={() => navigation?.navigate('GroupDetail', { groupId: group.id })} variant="outline" style={{ flex: 1, marginVertical: 0 }} />
+          </View>
+        ) : null}
+
+        <Text style={{ marginTop: 28, color: theme.colors.text, fontSize: 18, fontWeight: '900', textAlign: 'center' }}>Your Active Circles</Text>
+        {groups.length === 0 ? (
+          <View style={{ marginTop: 14, borderRadius: 22, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 18 }}>
+            <Text style={{ color: theme.colors.muted, fontSize: 13 }}>No circles yet. Start one below or join via code.</Text>
+          </View>
+        ) : groups.map(group => (
+          <View key={group.id} style={{ marginTop: 14, borderRadius: 22, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 16 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
+              <View style={{ width: 68, height: 68, borderRadius: 14, backgroundColor: '#182018', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: theme.colors.primary, fontSize: 16 }}>👥</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: theme.colors.text, fontSize: 15, fontWeight: '900' }}>{group.name}</Text>
+                <Text style={{ marginTop: 6, color: theme.colors.muted, fontSize: 13 }}>Next payout: --</Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '800' }}>₦{(group.contribution_amount_kobo / 100).toLocaleString()}/{group.frequency === 'WEEKLY' ? 'wk' : 'mo'}</Text>
+                <View style={{ marginTop: 8, height: 34, paddingHorizontal: 12, borderRadius: 18, backgroundColor: '#182018', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: theme.colors.primary, fontSize: 12, fontWeight: '800' }}>{group.status || 'Active'}</Text>
+                </View>
+              </View>
             </View>
-          </Card>
+            <View style={{ marginTop: 12, flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity onPress={() => pay(group.id)} style={{ flex: 1, height: 46, borderRadius: 12, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: theme.colors.white, fontWeight: '800', fontSize: 13 }}>Contribute</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation?.navigate('GroupDetail', { groupId: group.id })} style={{ flex: 1, height: 46, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 13 }}>Details</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         ))}
 
-        <SectionHeader title="Quick Actions" />
-        <View style={{ flexDirection: 'row', gap: theme.spacing.sm }}>
-          <Button title="Create Circle" onPress={() => navigation?.navigate('CreateCircle')} style={{ flex: 1, marginVertical: 0 }} />
-          <Button title="Join via Code" onPress={() => {}} variant="outline" style={{ flex: 1, marginVertical: 0 }} />
+        <Text style={{ marginTop: 28, color: theme.colors.text, fontSize: 18, fontWeight: '900', textAlign: 'center' }}>Quick Actions</Text>
+        <View style={{ marginTop: 14 }}>
+          <TouchableOpacity onPress={() => navigation?.navigate('CreateCircle')} style={{ height: 58, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.primary }}>
+            <Text style={{ color: theme.colors.white, fontSize: 13, fontWeight: '800' }}>⊕  Create Circle</Text>
+          </TouchableOpacity>
         </View>
 
-        <Card>
-          <Text style={{ fontSize: 18, fontWeight: '900', color: theme.colors.text }}>Join Circle</Text>
-          <Text style={{ marginTop: 4, color: theme.colors.muted }}>Enter an invite code to join a savings group.</Text>
+        <View style={{ marginTop: 18, borderRadius: 20, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 16 }}>
+          <Text style={{ fontSize: 15, fontWeight: '900', color: theme.colors.text }}>Join Circle</Text>
+          <Text style={{ marginTop: 4, color: theme.colors.muted, fontSize: 13 }}>Enter an invite code to join a savings group.</Text>
           <Input placeholder="Invite code" value={invite} onChangeText={setInvite} autoCapitalize="none" style={{ marginTop: theme.spacing.sm }} />
           {joining ? <ActivityIndicator color={theme.colors.primary} /> : <Button title="Join Group" onPress={join} />}
-        </Card>
+        </View>
 
-        <Card>
-          <Text style={{ fontWeight: '900', color: theme.colors.text, marginBottom: theme.spacing.xs }}>Security note</Text>
-          <Text style={{ color: theme.colors.muted, lineHeight: 20 }}>
-            Your balances are calculated from the ledger on the backend, not from the app UI. That keeps balances and payouts trustworthy.
-          </Text>
-        </Card>
+        <TouchableOpacity onPress={() => activeGroup ? pay(activeGroup.id) : navigation?.navigate('CreateCircle')} style={{ marginTop: 22, marginLeft: 'auto', width: 280, height: 74, borderRadius: 38, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: theme.colors.white, fontSize: 15, fontWeight: '500' }}>💵  Quick Deposit</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+function MiniMetric({ title, value }: { title: string; value: string }) {
+  return (
+    <View style={{ flex: 1, borderRadius: 22, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, padding: 18, minHeight: 126 }}>
+      <Text style={{ color: theme.colors.muted, fontSize: 13, fontWeight: '700' }}>{title}</Text>
+      <Text style={{ color: theme.colors.text, marginTop: 8, fontSize: 18, fontWeight: '900', lineHeight: 22 }}>{value}</Text>
+    </View>
   );
 }

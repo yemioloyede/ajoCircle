@@ -60,6 +60,60 @@ r.post('/join', async (req, res) => {
   res.json({ message: 'Joined group', group: g.rows[0], payoutPosition: pos });
 });
 
+r.post('/:id/members', async (req, res) => {
+  const id = req.params.id;
+  const s = z.object({
+    email: z.string().email().optional(),
+    phone: z.string().min(10).max(20).optional(),
+  }).parse(req.body);
+
+  const email = s.email?.toLowerCase().trim();
+  const phone = s.phone?.trim();
+  if (!email && !phone) return res.status(400).json({ error: 'Provide email or phone' });
+
+  const group = await query('select id,max_members,status from savings_groups where id=$1', [id]);
+  if (!group.rowCount) return res.status(404).json({ error: 'Group not found' });
+  if (group.rows[0].status !== 'ACTIVE') return res.status(400).json({ error: 'Group is not active' });
+
+  const admin = await query(
+    `select id from group_members
+     where group_id=$1 and user_id=$2 and role=$3 and status=$4`,
+    [id, req.user!.id, 'GROUP_ADMIN', 'ACTIVE']
+  );
+  if (!admin.rowCount) return res.status(403).json({ error: 'Only group admins can add members' });
+
+  const user = email
+    ? await query('select id,email,full_name,phone from users where lower(email)=lower($1)', [email])
+    : await query('select id,email,full_name,phone from users where phone=$1', [phone]);
+  if (!user.rowCount) return res.status(404).json({ error: 'User not found. Ask them to create an account, then use the invite link/code.' });
+
+  const activeCount = await query('select count(*) from group_members where group_id=$1 and status=$2', [id, 'ACTIVE']);
+  if (Number(activeCount.rows[0].count) >= group.rows[0].max_members) return res.status(400).json({ error: 'Group is full' });
+
+  const exists = await query('select id from group_members where group_id=$1 and user_id=$2', [id, user.rows[0].id]);
+  if (exists.rowCount) return res.status(409).json({ error: 'User is already in this group' });
+
+  const pos = Number(activeCount.rows[0].count) + 1;
+  await query(
+    'insert into group_members(group_id,user_id,role,payout_position,status) values($1,$2,$3,$4,$5)',
+    [id, user.rows[0].id, 'MEMBER', pos, 'ACTIVE']
+  );
+
+  await audit(req.user!.id, 'GROUP_MEMBER_ADDED', 'GROUP', id, { addedUserId: user.rows[0].id, position: pos }, req);
+  res.json({
+    message: 'Member added successfully',
+    member: {
+      id: user.rows[0].id,
+      email: user.rows[0].email,
+      full_name: user.rows[0].full_name,
+      phone: user.rows[0].phone,
+      payout_position: pos,
+      role: 'MEMBER',
+      status: 'ACTIVE',
+    },
+  });
+});
+
 r.get('/', async (req, res) => {
   const data = await query(
     `select g.*, gm.role as member_role, gm.payout_position
