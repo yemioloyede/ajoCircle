@@ -4,6 +4,8 @@ const PUBLIC_PATHS = ['/login', '/api/auth/login'];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const isRscRequest = req.nextUrl.searchParams.has('_rsc') || req.headers.get('rsc') === '1';
+  const isPrefetch = req.headers.get('next-router-prefetch') === '1' || req.headers.get('purpose') === 'prefetch';
 
   // Never protect framework/static assets.
   if (
@@ -13,6 +15,12 @@ export function middleware(req: NextRequest) {
     pathname === '/sitemap.xml' ||
     /\.[a-zA-Z0-9]+$/.test(pathname)
   ) {
+    return NextResponse.next();
+  }
+
+  // Avoid redirecting framework prefetch/RSC probes to /login.
+  // Redirect responses on these probes can surface as noisy 404s in the browser console.
+  if (isRscRequest || isPrefetch) {
     return NextResponse.next();
   }
 
