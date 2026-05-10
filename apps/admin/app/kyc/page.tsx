@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { api, apiWithBody } from '../../lib/api';
+import { api, apiWithBody, usePolling } from '../../lib/api';
 
 export default function KYCPage() {
   const [rows, setRows] = useState<any[]>([]);
@@ -17,7 +17,7 @@ export default function KYCPage() {
       .catch(() => setError('Failed to load KYC submissions'));
   }, [statusFilter]);
 
-  useEffect(() => { load(); }, [load]);
+  usePolling(load, 30_000);
 
   async function approve(id: string) {
     setMsg('');

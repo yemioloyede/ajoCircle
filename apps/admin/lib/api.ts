@@ -1,4 +1,17 @@
+import { useEffect, useRef } from 'react';
+
 const API = '';
+
+/** Calls `fn` immediately and then every `intervalMs` milliseconds while the component is mounted. */
+export function usePolling(fn: () => void, intervalMs = 30_000) {
+  const fnRef = useRef(fn);
+  fnRef.current = fn;
+  useEffect(() => {
+    fnRef.current();
+    const id = setInterval(() => fnRef.current(), intervalMs);
+    return () => clearInterval(id);
+  }, [intervalMs]);
+}
 
 function toProxyPath(path: string) {
   const clean = path.startsWith('/') ? path.slice(1) : path;

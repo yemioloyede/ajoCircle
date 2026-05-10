@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { api, apiWithBody } from '../../lib/api';
+import { api, apiWithBody, usePolling } from '../../lib/api';
 const PAGE_SIZE = 50;
 
 export default function Payouts() {
@@ -17,7 +17,7 @@ export default function Payouts() {
       .catch(() => setError('Failed to load payouts'));
   }, [offset]);
 
-  useEffect(() => { load(); }, [load]);
+  usePolling(load, 30_000);
 
   async function approve(id: string) {
     setMsg('');

@@ -1,14 +1,14 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { api } from '../../lib/api';
+import { api, usePolling } from '../../lib/api';
 
 export default function Dashboard() {
   const [d, setD] = useState<any>(null);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  usePolling(() => {
     api('/api/admin/dashboard').then(setD).catch(() => setError('Failed to load dashboard'));
-  }, []);
+  }, 10_000);
 
   const stats = d ? [
     ['Users', d.users],

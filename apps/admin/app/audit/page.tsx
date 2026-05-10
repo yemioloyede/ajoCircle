@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { api } from '../../lib/api';
+import { api, usePolling } from '../../lib/api';
 
 const PAGE_SIZE = 50;
 
@@ -17,7 +17,7 @@ export default function Page() {
       .catch(() => setError('Failed to load audit logs'));
   }, [offset]);
 
-  useEffect(() => { load(); }, [load]);
+  usePolling(load, 30_000);
 
   const formatDetails = (row: any) => {
     const md = row?.metadata || {};

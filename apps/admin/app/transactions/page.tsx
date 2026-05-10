@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { api } from '../../lib/api';
+import { api, usePolling } from '../../lib/api';
 
 const PAGE_SIZE = 50;
 
@@ -18,7 +18,7 @@ export default function Page() {
       .catch(() => setError('Failed to load transactions'));
   }, [offset]);
 
-  useEffect(() => { load(); }, [load]);
+  usePolling(load, 30_000);
 
   const filtered = rows.filter(r =>
     !search || [r.full_name, r.email, r.paystack_reference].some((v: string) => v?.toLowerCase().includes(search.toLowerCase()))
