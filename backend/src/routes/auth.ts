@@ -41,7 +41,10 @@ r.post('/register', authLimiter, async (req, res) => {
     'insert into users(full_name,email,phone,password_hash,role) values($1,$2,$3,$4,$5) returning id,email,phone,full_name,role',
     [s.fullName.trim(), email, phone, hp, 'MEMBER']
   );
-  await audit(u.rows[0].id, 'USER_REGISTERED', 'USER', u.rows[0].id, {}, req);
+  await audit(u.rows[0].id, 'USER_REGISTERED', 'USER', u.rows[0].id, {
+    details: `User registered with email ${email}`,
+    email,
+  }, req);
   res.json({ user: u.rows[0], token: signToken({ id: u.rows[0].id, email: u.rows[0].email, role: u.rows[0].role }) });
 });
 
@@ -53,7 +56,10 @@ r.post('/login', authLimiter, async (req, res) => {
   const ok = await verifyPassword(s.password, u.rows[0].password_hash);
   if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
   if (u.rows[0].status === 'FROZEN') return res.status(403).json({ error: 'Account is frozen. Contact support.' });
-  await audit(u.rows[0].id, 'USER_LOGIN', 'USER', u.rows[0].id, {}, req);
+  await audit(u.rows[0].id, 'USER_LOGIN', 'USER', u.rows[0].id, {
+    details: `User logged in with email ${email}`,
+    email,
+  }, req);
   res.json({
     user: { id: u.rows[0].id, email: u.rows[0].email, full_name: u.rows[0].full_name, role: u.rows[0].role },
     token: signToken({ id: u.rows[0].id, email: u.rows[0].email, role: u.rows[0].role }),
@@ -71,7 +77,10 @@ r.post('/forgot-password', authLimiter, async (req, res) => {
   }
 
   const token = signPasswordResetToken({ id: u.rows[0].id, email: u.rows[0].email });
-  await audit(u.rows[0].id, 'PASSWORD_RESET_REQUESTED', 'USER', u.rows[0].id, {}, req);
+  await audit(u.rows[0].id, 'PASSWORD_RESET_REQUESTED', 'USER', u.rows[0].id, {
+    details: `Password reset requested for ${email}`,
+    email,
+  }, req);
 
   try {
     await sendPasswordResetEmail(u.rows[0].email, token);
@@ -104,7 +113,10 @@ r.post('/reset-password', authLimiter, async (req, res) => {
 
   const hp = await hashPassword(s.password);
   await query('update users set password_hash=$1, updated_at=now() where id=$2', [hp, payload.id]);
-  await audit(payload.id, 'PASSWORD_RESET_COMPLETED', 'USER', payload.id, {}, req);
+  await audit(payload.id, 'PASSWORD_RESET_COMPLETED', 'USER', payload.id, {
+    details: `Password reset completed for ${payload.email}`,
+    email: payload.email,
+  }, req);
   res.json({ message: 'Password reset successful. You can now sign in.' });
 });
 

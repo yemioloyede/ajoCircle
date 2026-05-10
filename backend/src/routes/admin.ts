@@ -56,20 +56,30 @@ r.get('/users/:id', async (req, res) => {
 
 r.post('/users/:id/freeze', async (req, res) => {
   await query("update users set status='FROZEN', updated_at=now() where id=$1", [req.params.id]);
-  await audit(req.user!.id, 'USER_FROZEN', 'USER', req.params.id, {}, req);
+  await audit(req.user!.id, 'USER_FROZEN', 'USER', req.params.id, {
+    details: `Admin ${req.user!.id} froze user ${req.params.id}`,
+    targetUserId: req.params.id,
+  }, req);
   res.json({ message: 'User frozen' });
 });
 
 r.post('/users/:id/unfreeze', async (req, res) => {
   await query("update users set status='ACTIVE', updated_at=now() where id=$1", [req.params.id]);
-  await audit(req.user!.id, 'USER_UNFROZEN', 'USER', req.params.id, {}, req);
+  await audit(req.user!.id, 'USER_UNFROZEN', 'USER', req.params.id, {
+    details: `Admin ${req.user!.id} unfroze user ${req.params.id}`,
+    targetUserId: req.params.id,
+  }, req);
   res.json({ message: 'User unfrozen' });
 });
 
 r.patch('/users/:id/role', async (req, res) => {
   const s = z.object({ role: z.enum(['MEMBER', 'GROUP_ADMIN', 'COMPLIANCE_ADMIN', 'SUPER_ADMIN']) }).parse(req.body);
   await query('update users set role=$1, updated_at=now() where id=$2', [s.role, req.params.id]);
-  await audit(req.user!.id, 'USER_ROLE_CHANGED', 'USER', req.params.id, { newRole: s.role }, req);
+  await audit(req.user!.id, 'USER_ROLE_CHANGED', 'USER', req.params.id, {
+    details: `Admin ${req.user!.id} changed role for user ${req.params.id} to ${s.role}`,
+    targetUserId: req.params.id,
+    newRole: s.role,
+  }, req);
   res.json({ message: 'Role updated' });
 });
 
@@ -95,7 +105,11 @@ r.post('/kyc/:id/approve', async (req, res) => {
     [req.user!.id, req.params.id]
   );
   await query("update users set kyc_status='VERIFIED', updated_at=now() where id=$1", [row.rows[0].user_id]);
-  await audit(req.user!.id, 'KYC_APPROVED', 'USER', row.rows[0].user_id, { submissionId: req.params.id }, req);
+  await audit(req.user!.id, 'KYC_APPROVED', 'USER', row.rows[0].user_id, {
+    details: `Admin ${req.user!.id} approved KYC submission ${req.params.id} for user ${row.rows[0].user_id}`,
+    submissionId: req.params.id,
+    targetUserId: row.rows[0].user_id,
+  }, req);
   await createNotification(row.rows[0].user_id, 'KYC_APPROVED', 'KYC Verified', 'Your identity has been verified. You now have full access to AjoCircle.');
   res.json({ message: 'KYC approved' });
 });
@@ -109,7 +123,12 @@ r.post('/kyc/:id/reject', async (req, res) => {
     [req.user!.id, s.reason, req.params.id]
   );
   await query("update users set kyc_status='REJECTED', updated_at=now() where id=$1", [row.rows[0].user_id]);
-  await audit(req.user!.id, 'KYC_REJECTED', 'USER', row.rows[0].user_id, { reason: s.reason }, req);
+  await audit(req.user!.id, 'KYC_REJECTED', 'USER', row.rows[0].user_id, {
+    details: `Admin ${req.user!.id} rejected KYC submission ${req.params.id} for user ${row.rows[0].user_id}`,
+    submissionId: req.params.id,
+    reason: s.reason,
+    targetUserId: row.rows[0].user_id,
+  }, req);
   await createNotification(row.rows[0].user_id, 'KYC_REJECTED', 'KYC Rejected', `Your KYC was not approved. Reason: ${s.reason}`);
   res.json({ message: 'KYC rejected' });
 });
@@ -129,13 +148,19 @@ r.get('/groups', async (req, res) => {
 
 r.post('/groups/:id/freeze', async (req, res) => {
   await query("update savings_groups set status='FROZEN', updated_at=now() where id=$1", [req.params.id]);
-  await audit(req.user!.id, 'GROUP_FROZEN', 'GROUP', req.params.id, {}, req);
+  await audit(req.user!.id, 'GROUP_FROZEN', 'GROUP', req.params.id, {
+    details: `Admin ${req.user!.id} froze group ${req.params.id}`,
+    targetGroupId: req.params.id,
+  }, req);
   res.json({ message: 'Group frozen' });
 });
 
 r.post('/groups/:id/close', async (req, res) => {
   await query("update savings_groups set status='CLOSED', updated_at=now() where id=$1", [req.params.id]);
-  await audit(req.user!.id, 'GROUP_CLOSED', 'GROUP', req.params.id, {}, req);
+  await audit(req.user!.id, 'GROUP_CLOSED', 'GROUP', req.params.id, {
+    details: `Admin ${req.user!.id} closed group ${req.params.id}`,
+    targetGroupId: req.params.id,
+  }, req);
   res.json({ message: 'Group closed' });
 });
 
@@ -162,11 +187,25 @@ r.get('/audit', async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 50, 200);
   const offset = Number(req.query.offset) || 0;
   const rows = await query(
-    'select * from audit_logs order by created_at desc limit $1 offset $2',
+    `select a.*, u.full_name as actor_name, u.email as actor_email
+     from audit_logs a
+     left join users u on u.id=a.actor_id
+     order by a.created_at desc limit $1 offset $2`,
     [limit, offset]
   );
   const total = await query('select count(*) from audit_logs');
-  res.json({ logs: rows.rows, total: Number(total.rows[0].count) });
+  const logs = rows.rows.map((row) => {
+    let metadata = row.metadata;
+    if (typeof metadata === 'string') {
+      try {
+        metadata = JSON.parse(metadata);
+      } catch {
+        metadata = { raw: row.metadata };
+      }
+    }
+    return { ...row, metadata };
+  });
+  res.json({ logs, total: Number(total.rows[0].count) });
 });
 
 export default r;

@@ -65,7 +65,11 @@ r.post('/:id/approve', requireRole('COMPLIANCE_ADMIN', 'SUPER_ADMIN'), async (re
     return upd.rows[0];
   });
 
-  await audit(req.user!.id, 'PAYOUT_APPROVED', 'PAYOUT', id, {}, req);
+  await audit(req.user!.id, 'PAYOUT_APPROVED', 'PAYOUT', id, {
+    details: `Admin ${req.user!.id} approved payout ${id}`,
+    payoutId: id,
+    approvedBy: req.user!.id,
+  }, req);
   try {
     const payoutRow = await query('select recipient_user_id, amount_kobo from payouts where id=$1', [id]);
     if (payoutRow.rows[0]) {

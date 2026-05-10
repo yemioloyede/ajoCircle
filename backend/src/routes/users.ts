@@ -42,7 +42,10 @@ r.post('/kyc', async (req, res) => {
   }
 
   await query("update users set kyc_status='PENDING' where id=$1", [req.user!.id]);
-  await audit(req.user!.id, 'KYC_SUBMITTED', 'USER', req.user!.id, {}, req);
+  await audit(req.user!.id, 'KYC_SUBMITTED', 'USER', req.user!.id, {
+    details: `KYC submitted by user ${req.user!.id}`,
+    hasNin: Boolean(s.nin),
+  }, req);
   res.json({ message: 'KYC submitted for review', status: 'PENDING' });
 });
 
@@ -101,7 +104,12 @@ r.post('/bank-accounts', async (req, res) => {
     [req.user!.id, s.bankName, s.bankCode, acctEnc.encrypted, acctEnc.iv, resolved.account_name, recipient.recipient_code, s.makePrimary]
   );
 
-  await audit(req.user!.id, 'BANK_ACCOUNT_ADDED', 'USER', req.user!.id, { bankName: s.bankName }, req);
+  await audit(req.user!.id, 'BANK_ACCOUNT_ADDED', 'USER', req.user!.id, {
+    details: `Bank account added (${s.bankName})`,
+    bankName: s.bankName,
+    bankCode: s.bankCode,
+    accountEnding: s.accountNumber.slice(-4),
+  }, req);
   res.json(row.rows[0]);
 });
 
@@ -109,7 +117,10 @@ r.delete('/bank-accounts/:id', async (req, res) => {
   const row = await query('select id from bank_accounts where id=$1 and user_id=$2', [req.params.id, req.user!.id]);
   if (!row.rowCount) return res.status(404).json({ error: 'Bank account not found' });
   await query('delete from bank_accounts where id=$1', [req.params.id]);
-  await audit(req.user!.id, 'BANK_ACCOUNT_REMOVED', 'USER', req.user!.id, { accountId: req.params.id }, req);
+  await audit(req.user!.id, 'BANK_ACCOUNT_REMOVED', 'USER', req.user!.id, {
+    details: `Bank account removed (${req.params.id})`,
+    accountId: req.params.id,
+  }, req);
   res.json({ message: 'Bank account removed' });
 });
 
