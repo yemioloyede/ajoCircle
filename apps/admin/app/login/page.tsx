@@ -27,7 +27,7 @@ export default function Login() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
       <div className="card" style={{ maxWidth: 420, width: '100%' }}>
-        <h1 style={{ marginBottom: 4 }}>AjoCircle Admin</h1>
+        <h1 style={{ marginBottom: 4 }}>AjoCircle Admin v2.1</h1>
         <p style={{ color: '#52655c', marginBottom: 20 }}>Sign in with your admin credentials.</p>
         <input className="input" placeholder="Email" type="email" onChange={e => setEmail(e.target.value)} />
         <input className="input" type="password" placeholder="Password" onChange={e => setPassword(e.target.value)}

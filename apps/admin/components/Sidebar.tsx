@@ -29,7 +29,7 @@ export default function Sidebar() {
       <p style={{ margin: '0 0 24px', fontSize: 12, color: '#52655c' }}>Fintech Admin</p>
       <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         {links.map(({ href, label }) => (
-          <Link key={href} href={href} style={{
+          <Link key={href} href={href} prefetch={false} style={{
             padding: '10px 12px',
             borderRadius: 10,
             fontWeight: pathname === href ? 700 : 400,
