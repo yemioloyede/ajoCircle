@@ -144,7 +144,7 @@ r.get('/:id', async (req, res) => {
   const id = req.params.id;
   const g = await query('select * from savings_groups where id=$1', [id]);
   if (!g.rowCount) return res.status(404).json({ error: 'Not found' });
-  const [members, ledger, paidPayouts] = await Promise.all([
+  const [members, ledger, paidPayouts, history] = await Promise.all([
     query(
       'select gm.*, u.full_name,u.email,u.phone from group_members gm join users u on u.id=gm.user_id where gm.group_id=$1 order by gm.payout_position',
       [id]
@@ -155,6 +155,36 @@ r.get('/:id', async (req, res) => {
     ),
     query(
       "select recipient_user_id, created_at from payouts where group_id=$1 and status='PAID' order by created_at asc",
+      [id]
+    ),
+    query(
+      `select * from (
+         select c.id,
+                coalesce(c.paid_at, c.created_at) as created_at,
+                'CONTRIBUTION'::text as activity_type,
+                c.amount_kobo,
+                c.status,
+                u.full_name as actor_name,
+                c.payment_reference as reference
+         from contributions c
+         join users u on u.id=c.user_id
+         where c.group_id=$1
+
+         union all
+
+         select p.id,
+                coalesce(p.approved_at, p.created_at) as created_at,
+                'PAYOUT'::text as activity_type,
+                p.amount_kobo,
+                p.status,
+                u.full_name as actor_name,
+                coalesce(p.transfer_reference, p.transfer_code) as reference
+         from payouts p
+         join users u on u.id=p.recipient_user_id
+         where p.group_id=$1
+       ) x
+       order by created_at desc
+       limit 100`,
       [id]
     ),
   ]);
@@ -186,6 +216,7 @@ r.get('/:id', async (req, res) => {
     group: g.rows[0],
     members: members.rows,
     ledger: ledger.rows,
+    history: history.rows,
     schedule: {
       completedRounds,
       totalRounds,

@@ -321,18 +321,23 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
         {tab === 'history' ? (
           <View style={{ marginTop: 16 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '900' }}>Recent History</Text>
-              <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '800' }}>See All</Text>
+              <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '900' }}>Contribution & Payout History</Text>
             </View>
             <View style={{ marginTop: 12, borderRadius: 20, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 16 }}>
             {history.length ? history.map((entry: any) => (
               <View key={entry.id || entry.created_at} style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.border, flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: 18, color: theme.colors.primary }}>✅</Text>
+                <Text style={{ fontSize: 18, color: entry.activity_type === 'PAYOUT' ? '#f4a261' : theme.colors.primary }}>
+                  {entry.activity_type === 'PAYOUT' ? '💸' : '💰'}
+                </Text>
                 <View style={{ marginLeft: 12, flex: 1 }}>
-                  <Text style={{ fontWeight: '800', color: theme.colors.text, fontSize: 15 }}>{entry.title || entry.type || entry.entry_type || 'Round contribution'}</Text>
-                  <Text style={{ color: theme.colors.muted, fontSize: 13 }}>{entry.date || (entry.created_at ? new Date(entry.created_at).toLocaleDateString() : '-')}</Text>
+                  <Text style={{ fontWeight: '800', color: theme.colors.text, fontSize: 15 }}>
+                    {entry.activity_type === 'PAYOUT' ? 'Payout' : 'Contribution'}
+                  </Text>
+                  <Text style={{ color: theme.colors.muted, fontSize: 13 }}>
+                    {entry.actor_name || 'Member'} • {entry.status || 'UNKNOWN'} • {entry.created_at ? new Date(entry.created_at).toLocaleString() : '-'}
+                  </Text>
                 </View>
-                <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '800' }}>
+                <Text style={{ color: entry.activity_type === 'PAYOUT' ? '#f4a261' : theme.colors.primary, fontSize: 13, fontWeight: '800' }}>
                   ₦{((entry.amount_kobo ?? group.contribution_amount_kobo) / 100).toLocaleString()}
                 </Text>
               </View>
