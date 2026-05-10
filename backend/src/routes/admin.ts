@@ -181,6 +181,40 @@ r.get('/transactions', async (req, res) => {
   res.json({ transactions: rows.rows, total: Number(total.rows[0].count) });
 });
 
+// ─── Wallets ──────────────────────────────────────────────────────────────────
+
+r.get('/wallets', async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 50, 200);
+  const offset = Number(req.query.offset) || 0;
+  const rows = await query(
+    `select w.*,
+            case when w.owner_type='USER' then u.full_name
+                 when w.owner_type='GROUP' then g.name
+                 else 'Platform' end as owner_name,
+            case when w.owner_type='USER' then u.email else null end as owner_email
+     from wallets w
+     left join users u on u.id=w.owner_id and w.owner_type='USER'
+     left join savings_groups g on g.id=w.owner_id and w.owner_type='GROUP'
+     order by w.created_at desc limit $1 offset $2`,
+    [limit, offset]
+  );
+  const total = await query('select count(*) from wallets');
+  res.json({ wallets: rows.rows, total: Number(total.rows[0].count) });
+});
+
+r.get('/wallets/:id/ledger', async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 50, 200);
+  const offset = Number(req.query.offset) || 0;
+  const wallet = await query('select * from wallets where id=$1', [req.params.id]);
+  if (!wallet.rowCount) return res.status(404).json({ error: 'Wallet not found' });
+  const entries = await query(
+    'select * from ledger_entries where wallet_id=$1 order by created_at desc limit $2 offset $3',
+    [req.params.id, limit, offset]
+  );
+  const total = await query('select count(*) from ledger_entries where wallet_id=$1', [req.params.id]);
+  res.json({ wallet: wallet.rows[0], entries: entries.rows, total: Number(total.rows[0].count) });
+});
+
 // ─── Audit Logs ──────────────────────────────────────────────────────────────
 
 r.get('/audit', async (req, res) => {

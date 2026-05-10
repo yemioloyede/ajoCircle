@@ -6,6 +6,7 @@ const links = [
   { href: '/dashboard', label: 'Dashboard' },
   { href: '/users', label: 'Users' },
   { href: '/groups', label: 'Groups' },
+  { href: '/wallets', label: 'Wallets' },
   { href: '/kyc', label: 'KYC Queue' },
   { href: '/transactions', label: 'Transactions' },
   { href: '/payouts', label: 'Payouts' },
