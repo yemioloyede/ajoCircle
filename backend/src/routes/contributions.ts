@@ -69,6 +69,22 @@ r.get('/mine', async (req, res) => {
   res.json({ contributions: rows.rows, nextCursor: rows.rows[rows.rows.length - 1]?.created_at ?? null });
 });
 
+r.get('/summary', async (req, res) => {
+  const totals = await query(
+    `select
+       coalesce(sum(case when status='SUCCESS' then amount_kobo else 0 end), 0) as total_saved_kobo,
+       coalesce(count(*) filter (where status='SUCCESS'), 0) as successful_contributions
+     from contributions
+     where user_id=$1`,
+    [req.user!.id]
+  );
+
+  res.json({
+    totalSavedKobo: Number(totals.rows[0].total_saved_kobo || 0),
+    successfulContributions: Number(totals.rows[0].successful_contributions || 0),
+  });
+});
+
 // Manually verify a payment with Paystack — used by mobile after returning from the payment URL
 r.post('/verify', async (req, res, next) => {
   try {
