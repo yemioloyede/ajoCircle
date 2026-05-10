@@ -106,7 +106,7 @@ export default function AuthScreen({ onBackToIntro }: Props) {
 
       {mode === 'register' ? (
         <View style={{ backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 20, padding: 18, marginTop: 24 }}>
-          <StepRow active index={1} label="Phone Verification" />
+          <StepRow active index={1} label="Account Setup" />
           <StepRow index={2} label="Basic Profile" />
           <StepRow index={3} label="Identity (KYC)" />
         </View>
@@ -203,7 +203,7 @@ export default function AuthScreen({ onBackToIntro }: Props) {
 
       {loading ? <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 22 }} /> : (
         <TouchableOpacity onPress={submit} style={{ marginTop: 26, height: 66, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.primary }}>
-          <Text style={{ color: theme.colors.white, fontWeight: '800', fontSize: 15 }}>{mode === 'login' ? 'Sign In' : 'Verify Phone Number'}</Text>
+          <Text style={{ color: theme.colors.white, fontWeight: '800', fontSize: 15 }}>{mode === 'login' ? 'Sign In' : 'Create Account'}</Text>
         </TouchableOpacity>
       )}
       {!!err && <Text style={{ color: theme.colors.danger, textAlign: 'center', marginTop: 12, fontWeight: '700' }}>{err}</Text>}

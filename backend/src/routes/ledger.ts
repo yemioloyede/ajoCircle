@@ -7,12 +7,20 @@ r.use(requireAuth);
 
 // GET /api/ledger/me — user's wallet balance + paginated ledger entries
 r.get('/me', async (req, res) => {
-  // Find the user's personal wallet (created via groups membership or contributions)
-  // Balance = sum of all user-scoped ledger entries via their wallets
+  // Find wallets owned by the user and wallets for groups they belong to.
   const wallets = await query(
-    `select distinct w.id from wallets w
-     join group_members m on m.group_id = w.group_id
-     where m.user_id = $1`,
+    `select distinct w.id
+     from wallets w
+     where (w.owner_type = 'USER' and w.owner_id = $1)
+        or (
+          w.owner_type = 'GROUP'
+          and exists (
+            select 1
+            from savings_groups g
+            join group_members m on m.group_id = g.id
+            where g.wallet_id = w.id and m.user_id = $1
+          )
+        )`,
     [req.user!.id]
   );
 
@@ -32,7 +40,7 @@ r.get('/me', async (req, res) => {
     `select le.*, sg.name as group_name
      from ledger_entries le
      join wallets w on w.id = le.wallet_id
-     left join savings_groups sg on sg.id = w.group_id
+     left join savings_groups sg on sg.wallet_id = w.id
      where le.wallet_id in (${placeholders})
      ${before ? `and le.created_at < $${walletIds.length + 1}` : ''}
      order by le.created_at desc

@@ -22,7 +22,7 @@ export default function BankAccountScreen() {
   async function load() {
     try {
       const j = await api('/api/users/bank-accounts');
-      setAccounts(j.accounts || []);
+      setAccounts(Array.isArray(j) ? j : (j.accounts || []));
     } catch (e: any) { setError(e.message); }
   }
 

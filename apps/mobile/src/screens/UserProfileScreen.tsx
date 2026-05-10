@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
@@ -12,6 +12,9 @@ interface Props {
 export default function UserProfileScreen({ navigation }: Props) {
   const { user, logout } = useAuth();
   const payoutAccounts = Array.isArray((user as any)?.payout_accounts) ? (user as any).payout_accounts : [];
+  const comingSoon = (feature: string) => {
+    Alert.alert('Coming soon', `${feature} will be available in an upcoming update.`);
+  };
 
   const initials = useMemo(() => {
     if (!user?.full_name) return 'A';
@@ -76,10 +79,10 @@ export default function UserProfileScreen({ navigation }: Props) {
 
         <Text style={{ marginTop: 22, color: theme.colors.text, fontSize: 18, fontWeight: '900', textAlign: 'center' }}>Security & Preferences</Text>
 
-        <SettingRow title="Change PIN" subtitle="Secure your transaction authorizations" icon="lock-reset" onPress={() => navigation.navigate('KYC')} />
-        <SettingRow title="Biometric Login" subtitle="Use FaceID or TouchID to sign in" icon="fingerprint" onPress={() => navigation.navigate('KYC')} />
+        <SettingRow title="Change PIN" subtitle="Secure your transaction authorizations" icon="lock-reset" onPress={() => comingSoon('Change PIN')} />
+        <SettingRow title="Biometric Login" subtitle="Use FaceID or TouchID to sign in" icon="fingerprint" onPress={() => comingSoon('Biometric Login')} />
         <SettingRow title="Notifications" subtitle="Manage alerts for contributions and payouts" icon="bell-outline" onPress={() => navigation.getParent()?.navigate('Notifications')} />
-        <SettingRow title="Two-Factor Auth" subtitle="Add an extra layer of security" icon="shield-key-outline" onPress={() => navigation.navigate('KYC')} />
+        <SettingRow title="Two-Factor Auth" subtitle="Add an extra layer of security" icon="shield-key-outline" onPress={() => comingSoon('Two-Factor Auth')} />
 
         <View style={{ marginTop: 22, borderRadius: 16, borderWidth: 1, borderColor: '#5A2A36', padding: 16 }}>
           <TouchableOpacity onPress={logout} style={{ height: 54, borderRadius: 14, backgroundColor: theme.colors.danger, alignItems: 'center', justifyContent: 'center' }}>

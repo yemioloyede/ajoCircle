@@ -54,7 +54,7 @@ r.get('/kyc', async (req, res) => {
     'select id, status, rejection_reason, created_at, updated_at from kyc_submissions where user_id=$1',
     [req.user!.id]
   );
-  res.json(row.rows[0] ?? null);
+  res.json({ kyc: row.rows[0] ?? null });
 });
 
 // ─── Bank Accounts ───────────────────────────────────────────────────────────
@@ -64,13 +64,13 @@ r.get('/bank-accounts', async (req, res) => {
     'select id, bank_name, bank_code, account_name, is_primary, created_at from bank_accounts where user_id=$1 order by is_primary desc, created_at desc',
     [req.user!.id]
   );
-  res.json(rows.rows);
+  res.json({ accounts: rows.rows });
 });
 
 r.post('/bank-accounts', async (req, res) => {
   const s = z.object({
     bankCode: z.string().min(3).max(10),
-    bankName: z.string().min(2).max(100),
+    bankName: z.string().min(2).max(100).optional(),
     accountNumber: z.string().regex(/^\d{10}$/, 'Account number must be 10 digits'),
     makePrimary: z.boolean().default(true),
   }).parse(req.body);
@@ -92,6 +92,7 @@ r.post('/bank-accounts', async (req, res) => {
   }
 
   const acctEnc = encrypt(s.accountNumber);
+  const bankName = s.bankName?.trim() || resolved.bank_name || 'Bank';
 
   // Optionally demote other primary accounts
   if (s.makePrimary) {
@@ -101,16 +102,16 @@ r.post('/bank-accounts', async (req, res) => {
   const row = await query(
     `insert into bank_accounts(user_id,bank_name,bank_code,account_number_encrypted,account_number_iv,account_name,paystack_recipient_code,is_primary)
      values($1,$2,$3,$4,$5,$6,$7,$8) returning id,bank_name,bank_code,account_name,is_primary,created_at`,
-    [req.user!.id, s.bankName, s.bankCode, acctEnc.encrypted, acctEnc.iv, resolved.account_name, recipient.recipient_code, s.makePrimary]
+    [req.user!.id, bankName, s.bankCode, acctEnc.encrypted, acctEnc.iv, resolved.account_name, recipient.recipient_code, s.makePrimary]
   );
 
   await audit(req.user!.id, 'BANK_ACCOUNT_ADDED', 'USER', req.user!.id, {
-    details: `Bank account added (${s.bankName})`,
-    bankName: s.bankName,
+    details: `Bank account added (${bankName})`,
+    bankName,
     bankCode: s.bankCode,
     accountEnding: s.accountNumber.slice(-4),
   }, req);
-  res.json(row.rows[0]);
+  res.json({ account: row.rows[0] });
 });
 
 r.delete('/bank-accounts/:id', async (req, res) => {

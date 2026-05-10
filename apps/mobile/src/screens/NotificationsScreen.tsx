@@ -10,24 +10,35 @@ export default function NotificationsScreen() {
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [offset, setOffset] = useState(0);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const limit = 30;
 
   async function load(reset = false) {
-    const off = reset ? 0 : offset;
+    if (!reset && (!nextCursor || loadingMore)) return;
+    const before = reset ? null : nextCursor;
+    if (!reset) setLoadingMore(true);
+
     try {
-      const j = await api(`/api/notifications?limit=${limit}&offset=${off}`);
+      const query = before
+        ? `/api/notifications?limit=${limit}&before=${encodeURIComponent(before)}`
+        : `/api/notifications?limit=${limit}`;
+      const j = await api(query);
+      const batch = j.notifications || [];
+
       setUnread(j.unreadCount || 0);
       if (reset) {
-        setItems(j.notifications || []);
-        setOffset(limit);
+        setItems(batch);
       } else {
-        setItems(prev => [...prev, ...(j.notifications || [])]);
-        setOffset(off + limit);
+        setItems(prev => [...prev, ...batch]);
       }
-      setHasMore((j.notifications || []).length === limit);
+      setNextCursor(j.nextCursor || null);
+      setHasMore(Boolean(j.nextCursor));
     } catch { /* ignore */ }
+    finally {
+      if (!reset) setLoadingMore(false);
+    }
   }
 
   const refresh = useCallback(async () => {
@@ -89,6 +100,7 @@ export default function NotificationsScreen() {
       onEndReached={() => hasMore && load()}
       onEndReachedThreshold={0.5}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.colors.primary} />}
+      ListFooterComponent={loadingMore ? <ActivityIndicator color={theme.colors.primary} style={{ marginVertical: 12 }} /> : null}
       ListEmptyComponent={<Card><Text style={{ color: theme.colors.muted, textAlign: 'center' }}>No notifications.</Text></Card>}
     />
     </SafeAreaView>

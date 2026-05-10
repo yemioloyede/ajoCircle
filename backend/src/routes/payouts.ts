@@ -14,17 +14,55 @@ r.post('/request', async (req, res) => {
   const s = z.object({
     groupId: z.string().uuid(),
     recipientUserId: z.string().uuid(),
-    amountKobo: z.number().int().positive(),
+    amountKobo: z.number().int().positive().optional(),
   }).parse(req.body);
 
-  const g = await query('select * from savings_groups where id=$1 and status=$2', [s.groupId, 'ACTIVE']);
+  const g = await query(
+    'select id, contribution_amount_kobo from savings_groups where id=$1 and status=$2',
+    [s.groupId, 'ACTIVE']
+  );
   if (!g.rowCount) return res.status(404).json({ error: 'Group not found or not active' });
+
+  const admin = await query(
+    `select id from group_members
+     where group_id=$1 and user_id=$2 and role=$3 and status=$4`,
+    [s.groupId, req.user!.id, 'GROUP_ADMIN', 'ACTIVE']
+  );
+  if (!admin.rowCount) return res.status(403).json({ error: 'Only group admins can request payouts' });
+
+  const recipient = await query(
+    `select id from group_members
+     where group_id=$1 and user_id=$2 and status=$3`,
+    [s.groupId, s.recipientUserId, 'ACTIVE']
+  );
+  if (!recipient.rowCount) return res.status(400).json({ error: 'Recipient must be an active member of the group' });
+
+  const pending = await query(
+    `select id from payouts
+     where group_id=$1 and status='PENDING_REVIEW'
+     order by created_at desc limit 1`,
+    [s.groupId]
+  );
+  if (pending.rowCount) return res.status(409).json({ error: 'A payout request is already pending review for this group' });
+
+  const activeMembers = await query(
+    `select count(*) from group_members
+     where group_id=$1 and status='ACTIVE'`,
+    [s.groupId]
+  );
+  const memberCount = Math.max(Number(activeMembers.rows[0].count || 0), 1);
+  const computedAmount = Number(g.rows[0].contribution_amount_kobo) * memberCount;
+  const amountKobo = s.amountKobo ?? computedAmount;
 
   const p = await query(
     "insert into payouts(group_id,recipient_user_id,amount_kobo,status,requested_by) values($1,$2,$3,$4,$5) returning *",
-    [s.groupId, s.recipientUserId, s.amountKobo, 'PENDING_REVIEW', req.user!.id]
+    [s.groupId, s.recipientUserId, amountKobo, 'PENDING_REVIEW', req.user!.id]
   );
-  await audit(req.user!.id, 'PAYOUT_REQUESTED', 'PAYOUT', p.rows[0].id, s, req);
+  await audit(req.user!.id, 'PAYOUT_REQUESTED', 'PAYOUT', p.rows[0].id, {
+    ...s,
+    amountKobo,
+    details: `Group admin ${req.user!.id} requested payout for group ${s.groupId}`,
+  }, req);
   res.json(p.rows[0]);
 });
 

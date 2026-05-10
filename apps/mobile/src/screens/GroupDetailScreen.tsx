@@ -28,6 +28,7 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
   const [confirmErr, setConfirmErr] = useState('');
   const [inviteEmailOrPhone, setInviteEmailOrPhone] = useState('');
   const [addingMember, setAddingMember] = useState(false);
+  const [requestingPayout, setRequestingPayout] = useState(false);
   const [historyQuery, setHistoryQuery] = useState('');
   const [historyTypeFilter, setHistoryTypeFilter] = useState<'ALL' | 'CONTRIBUTION' | 'PAYOUT'>('ALL');
   const [historyStatusFilter, setHistoryStatusFilter] = useState<'ALL' | 'SUCCESSFUL' | 'PENDING' | 'FAILED'>('ALL');
@@ -230,6 +231,36 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
     }
   }
 
+  async function requestNextPayout() {
+    if (!canManageMembers) {
+      setErr('Only group admins can request payouts');
+      return;
+    }
+    if (!schedule?.nextRecipient?.userId) {
+      setErr('No recipient is available for the next payout yet');
+      return;
+    }
+
+    setRequestingPayout(true);
+    setErr('');
+    setMsg('');
+    try {
+      const j = await api('/api/payouts/request', {
+        method: 'POST',
+        body: JSON.stringify({
+          groupId,
+          recipientUserId: schedule.nextRecipient.userId,
+        }),
+      });
+      setMsg(j?.id ? 'Payout request submitted for admin review' : 'Payout request submitted');
+      await load();
+    } catch (e: any) {
+      setErr(e.message || 'Could not request payout');
+    } finally {
+      setRequestingPayout(false);
+    }
+  }
+
   if (loading) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}><ActivityIndicator color={theme.colors.primary} size="large" /></View>;
   if (!group) return <View style={{ flex: 1, padding: 18, backgroundColor: theme.colors.background }}><Text style={{ color: theme.colors.danger }}>{err || 'Group not found'}</Text></View>;
 
@@ -276,6 +307,26 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
           {!isFinished ? (
             <TouchableOpacity onPress={pay} style={{ height: 66, borderRadius: 18, marginTop: 16, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ color: theme.colors.white, fontSize: 15, fontWeight: '800' }}>💳  Contribute ₦{(group.contribution_amount_kobo / 100).toLocaleString()}</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {!isFinished && canManageMembers && schedule?.nextRecipient?.userId ? (
+            <TouchableOpacity
+              onPress={requestNextPayout}
+              disabled={requestingPayout}
+              style={{
+                height: 56,
+                borderRadius: 18,
+                marginTop: 12,
+                borderWidth: 1,
+                borderColor: theme.colors.primary,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: requestingPayout ? 0.7 : 1,
+              }}>
+              <Text style={{ color: theme.colors.primary, fontSize: 14, fontWeight: '800' }}>
+                {requestingPayout ? 'Submitting payout request...' : 'Request Next Payout'}
+              </Text>
             </TouchableOpacity>
           ) : null}
 

@@ -75,7 +75,7 @@ export default function WalletScreen({ navigation }: Props) {
                   <Text style={{ color: '#1C2431', fontSize: 14, fontWeight: '800' }}>+ Add Funds</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => navigation.navigate('PayoutHistory')} style={{ flex: 1, height: 52, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.55)', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ color: theme.colors.white, fontSize: 14, fontWeight: '800' }}>Withdraw</Text>
+                  <Text style={{ color: theme.colors.white, fontSize: 14, fontWeight: '800' }}>View Payouts</Text>
                 </TouchableOpacity>
               </View>
             </View>

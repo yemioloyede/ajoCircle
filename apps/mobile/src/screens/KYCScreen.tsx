@@ -23,7 +23,7 @@ export default function KYCScreen() {
   async function load() {
     try {
       const j = await api('/api/users/kyc');
-      setStatus(j.kyc || null);
+      setStatus((j?.kyc ?? j) || null);
     } catch {
       // no KYC yet
       setStatus(null);
