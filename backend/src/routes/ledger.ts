@@ -10,8 +10,8 @@ r.get('/me', async (req, res) => {
   // Find the user's personal wallet (created via groups membership or contributions)
   // Balance = sum of all user-scoped ledger entries via their wallets
   const wallets = await query(
-    `select w.id from wallets w
-     join savings_group_members m on m.group_id = w.group_id
+    `select distinct w.id from wallets w
+     join group_members m on m.group_id = w.group_id
      where m.user_id = $1`,
     [req.user!.id]
   );

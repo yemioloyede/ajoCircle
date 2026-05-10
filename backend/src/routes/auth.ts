@@ -2,9 +2,11 @@ import { Router } from 'express';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { query } from '../config/db';
-import { hashPassword, verifyPassword, signToken } from '../utils/security';
+import { hashPassword, verifyPassword, signToken, signPasswordResetToken, verifyPasswordResetToken } from '../utils/security';
 import { requireAuth } from '../middleware/auth';
 import { audit } from '../services/audit';
+import { env } from '../config/env';
+import { sendPasswordResetEmail } from '../services/mailer';
 
 const r = Router();
 
@@ -56,6 +58,54 @@ r.post('/login', authLimiter, async (req, res) => {
     user: { id: u.rows[0].id, email: u.rows[0].email, full_name: u.rows[0].full_name, role: u.rows[0].role },
     token: signToken({ id: u.rows[0].id, email: u.rows[0].email, role: u.rows[0].role }),
   });
+});
+
+r.post('/forgot-password', authLimiter, async (req, res) => {
+  const s = z.object({ email: z.string().email() }).parse(req.body);
+  const email = s.email.toLowerCase().trim();
+  const u = await query('select id,email from users where email=$1', [email]);
+
+  // Always return a generic success message to prevent email enumeration.
+  if (!u.rowCount) {
+    return res.json({ message: 'If an account exists for this email, password reset instructions have been sent.' });
+  }
+
+  const token = signPasswordResetToken({ id: u.rows[0].id, email: u.rows[0].email });
+  await audit(u.rows[0].id, 'PASSWORD_RESET_REQUESTED', 'USER', u.rows[0].id, {}, req);
+
+  try {
+    await sendPasswordResetEmail(u.rows[0].email, token);
+  } catch {
+    // Do not fail reset request response because of transient mail provider issues.
+  }
+
+  // In non-production we return token for QA/testing when no email provider is wired yet.
+  if (env.nodeEnv !== 'production') {
+    return res.json({
+      message: 'Password reset requested. Use the reset token below for testing.',
+      resetToken: token,
+    });
+  }
+
+  return res.json({ message: 'If an account exists for this email, password reset instructions have been sent.' });
+});
+
+r.post('/reset-password', authLimiter, async (req, res) => {
+  const s = z.object({ token: z.string().min(10), password: z.string().min(8).max(128) }).parse(req.body);
+  let payload: { id: string; email: string };
+  try {
+    payload = verifyPasswordResetToken(s.token);
+  } catch {
+    return res.status(400).json({ error: 'Invalid or expired reset token' });
+  }
+
+  const u = await query('select id,email from users where id=$1 and email=$2', [payload.id, payload.email]);
+  if (!u.rowCount) return res.status(404).json({ error: 'Account not found' });
+
+  const hp = await hashPassword(s.password);
+  await query('update users set password_hash=$1, updated_at=now() where id=$2', [hp, payload.id]);
+  await audit(payload.id, 'PASSWORD_RESET_COMPLETED', 'USER', payload.id, {}, req);
+  res.json({ message: 'Password reset successful. You can now sign in.' });
 });
 
 r.get('/me', requireAuth, async (req, res) => {

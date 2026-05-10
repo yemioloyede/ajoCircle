@@ -13,6 +13,7 @@ interface Props {
 export default function HomeScreen({ navigation }: Props) {
   const { user } = useAuth();
   const [groups, setGroups] = useState<any[]>([]);
+  const [contributions, setContributions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [invite, setInvite] = useState('');
@@ -24,10 +25,11 @@ export default function HomeScreen({ navigation }: Props) {
   const [confirmErr, setConfirmErr] = useState('');
 
   const load = useCallback(async () => {
-    const [groupsRes, summaryRes, ledgerRes] = await Promise.allSettled([
+    const [groupsRes, summaryRes, ledgerRes, contributionsRes] = await Promise.allSettled([
       api('/api/groups'),
       api('/api/contributions/summary'),
       api('/api/ledger/me'),
+      api('/api/contributions/mine?limit=100'),
     ]);
 
     if (groupsRes.status === 'fulfilled') {
@@ -46,6 +48,13 @@ export default function HomeScreen({ navigation }: Props) {
     } else {
       setTotalSavedKobo(0);
     }
+
+    if (contributionsRes.status === 'fulfilled') {
+      const c = contributionsRes.value as any;
+      setContributions(Array.isArray(c) ? c : c.contributions || []);
+    } else {
+      setContributions([]);
+    }
   }, []);
 
   const refresh = useCallback(async () => {
@@ -59,6 +68,95 @@ export default function HomeScreen({ navigation }: Props) {
   }, [load]);
 
   const totalCommittedKobo = useMemo(() => totalSavedKobo, [totalSavedKobo]);
+
+  const upcomingDeadlines = useMemo(() => {
+    const now = new Date();
+
+    const startOfDay = (d: Date) => {
+      const x = new Date(d);
+      x.setHours(0, 0, 0, 0);
+      return x;
+    };
+
+    const addDays = (d: Date, days: number) => {
+      const x = new Date(d);
+      x.setDate(x.getDate() + days);
+      return x;
+    };
+
+    const addMonthsClamped = (base: Date, offset: number) => {
+      const year = base.getFullYear();
+      const month = base.getMonth() + offset;
+      const targetYear = year + Math.floor(month / 12);
+      const targetMonth = ((month % 12) + 12) % 12;
+      const lastDay = new Date(targetYear, targetMonth + 1, 0).getDate();
+      const day = Math.min(base.getDate(), lastDay);
+      return new Date(targetYear, targetMonth, day);
+    };
+
+    const getCycleWindow = (group: any) => {
+      const anchor = startOfDay(new Date(group.start_date || group.created_at || now));
+      const today = startOfDay(now);
+      if (today < anchor) {
+        const next = group.frequency === 'DAILY'
+          ? addDays(anchor, 1)
+          : group.frequency === 'WEEKLY'
+            ? addDays(anchor, 7)
+            : addMonthsClamped(anchor, 1);
+        return { periodStart: anchor, periodEnd: next, nextDue: anchor };
+      }
+
+      if (group.frequency === 'DAILY') {
+        const diff = Math.floor((today.getTime() - anchor.getTime()) / 86400000);
+        const periodStart = addDays(anchor, diff);
+        const periodEnd = addDays(periodStart, 1);
+        return { periodStart, periodEnd, nextDue: periodEnd };
+      }
+
+      if (group.frequency === 'WEEKLY') {
+        const diff = Math.floor((today.getTime() - anchor.getTime()) / 86400000);
+        const cycles = Math.floor(diff / 7);
+        const periodStart = addDays(anchor, cycles * 7);
+        const periodEnd = addDays(periodStart, 7);
+        return { periodStart, periodEnd, nextDue: periodEnd };
+      }
+
+      const months = (today.getFullYear() - anchor.getFullYear()) * 12 + (today.getMonth() - anchor.getMonth());
+      let periodStart = addMonthsClamped(anchor, months);
+      if (periodStart > today) periodStart = addMonthsClamped(anchor, months - 1);
+      const periodEnd = addMonthsClamped(periodStart, 1);
+      return { periodStart, periodEnd, nextDue: periodEnd };
+    };
+
+    const scheduleLabel = (group: any) => {
+      const anchor = new Date(group.start_date || group.created_at || now);
+      if (group.frequency === 'DAILY') return 'Every day';
+      if (group.frequency === 'WEEKLY') {
+        return `Every ${anchor.toLocaleDateString(undefined, { weekday: 'long' })}`;
+      }
+      return `Every month on day ${anchor.getDate()}`;
+    };
+
+    return groups
+      .filter(group => (group.status || 'ACTIVE') === 'ACTIVE')
+      .map(group => {
+        const window = getCycleWindow(group);
+        const paidThisPeriod = contributions.some((c: any) => {
+          if (c.group_id !== group.id) return false;
+          if (c.status !== 'SUCCESS') return false;
+          const when = new Date(c.paid_at || c.created_at);
+          return when >= window.periodStart && when < window.periodEnd;
+        });
+        return {
+          group,
+          paidThisPeriod,
+          nextDue: window.nextDue,
+          schedule: scheduleLabel(group),
+        };
+      })
+      .filter(item => !item.paidThisPeriod)
+      .sort((a, b) => a.nextDue.getTime() - b.nextDue.getTime());
+  }, [groups, contributions]);
 
   function normalizeInviteCode(input: string) {
     const value = input.trim();
@@ -147,19 +245,16 @@ export default function HomeScreen({ navigation }: Props) {
   }
 
   const activeGroup = groups[0];
+  const topUpcoming = upcomingDeadlines[0];
   const userInitials = user?.full_name
     ? user.full_name.split(' ').slice(0, 2).map((part: string) => part[0]).join('').toUpperCase()
     : 'AA';
-
-  const upcomingLabel = activeGroup
-    ? `Contribution of ₦${(activeGroup.contribution_amount_kobo / 100).toLocaleString()} due soon`
-    : 'Create your first circle to see upcoming deadlines';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['left', 'right', 'top']}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 44 }}
+        contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.colors.primary} />}>
         <View style={{ marginTop: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <View>
@@ -195,12 +290,12 @@ export default function HomeScreen({ navigation }: Props) {
 
         <View style={{ marginTop: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '900' }}>Upcoming Deadlines</Text>
-          <TouchableOpacity onPress={() => activeGroup ? navigation?.navigate('GroupDetail', { groupId: activeGroup.id }) : navigation?.navigate('CreateCircle')}>
+          <TouchableOpacity onPress={() => topUpcoming ? navigation?.navigate('GroupDetail', { groupId: topUpcoming.group.id }) : navigation?.navigate('CreateCircle')}>
             <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '800' }}>View All</Text>
           </TouchableOpacity>
         </View>
 
-        {activeGroup ? (
+        {upcomingDeadlines.length ? (
           <View style={{ marginTop: 14, borderRadius: 24, backgroundColor: theme.colors.primary, padding: 20 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
@@ -208,16 +303,30 @@ export default function HomeScreen({ navigation }: Props) {
                   <Text style={{ color: theme.colors.white, fontSize: 16 }}>📅</Text>
                 </View>
                 <View style={{ marginLeft: 14, flex: 1 }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '700' }}>Group: {activeGroup.name}</Text>
-                  <Text style={{ color: theme.colors.white, fontSize: 16, fontWeight: '900', lineHeight: 22, marginTop: 6 }}>{upcomingLabel.replace(' due soon', '')}</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '700' }}>Group: {topUpcoming?.group.name}</Text>
+                  <Text style={{ color: theme.colors.white, fontSize: 16, fontWeight: '900', lineHeight: 22, marginTop: 6 }}>
+                    ₦{((topUpcoming?.group.contribution_amount_kobo || 0) / 100).toLocaleString()} due {topUpcoming?.nextDue.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                  </Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 6 }}>{topUpcoming?.schedule}</Text>
                 </View>
               </View>
-              <TouchableOpacity onPress={() => pay(activeGroup.id)} style={{ width: 120, height: 52, borderRadius: 12, backgroundColor: theme.colors.secondary, alignItems: 'center', justifyContent: 'center' }}>
+              <TouchableOpacity onPress={() => topUpcoming && pay(topUpcoming.group.id)} style={{ width: 120, height: 52, borderRadius: 12, backgroundColor: theme.colors.secondary, alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ color: '#18212C', fontWeight: '800', fontSize: 13 }}>Pay Now</Text>
               </TouchableOpacity>
             </View>
           </View>
-        ) : null}
+        ) : groups.length ? (
+          <View style={{ marginTop: 14, borderRadius: 24, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 16 }}>
+            <Text style={{ color: theme.colors.text, fontSize: 15, fontWeight: '900' }}>No upcoming payment right now</Text>
+            <Text style={{ marginTop: 6, color: theme.colors.muted, fontSize: 13 }}>
+              You have paid all active circles for this period.
+            </Text>
+          </View>
+        ) : (
+          <View style={{ marginTop: 14, borderRadius: 24, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 16 }}>
+            <Text style={{ color: theme.colors.muted, fontSize: 13 }}>Create your first circle to see upcoming deadlines.</Text>
+          </View>
+        )}
 
         <Text style={{ marginTop: 28, color: theme.colors.text, fontSize: 18, fontWeight: '900', textAlign: 'center' }}>Your Active Circles</Text>
         {groups.length === 0 ? (
@@ -252,13 +361,6 @@ export default function HomeScreen({ navigation }: Props) {
           </View>
         ))}
 
-        <Text style={{ marginTop: 28, color: theme.colors.text, fontSize: 18, fontWeight: '900', textAlign: 'center' }}>Quick Actions</Text>
-        <View style={{ marginTop: 14 }}>
-          <TouchableOpacity onPress={() => navigation?.navigate('CreateCircle')} style={{ height: 58, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.primary }}>
-            <Text style={{ color: theme.colors.white, fontSize: 13, fontWeight: '800' }}>⊕  Create Circle</Text>
-          </TouchableOpacity>
-        </View>
-
         <View style={{ marginTop: 18, borderRadius: 20, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 16 }}>
           <Text style={{ fontSize: 15, fontWeight: '900', color: theme.colors.text }}>Join Circle</Text>
           <Text style={{ marginTop: 4, color: theme.colors.muted, fontSize: 13 }}>Enter an invite code to join a savings group.</Text>
@@ -266,10 +368,24 @@ export default function HomeScreen({ navigation }: Props) {
           {joining ? <ActivityIndicator color={theme.colors.primary} /> : <Button title="Join Group" onPress={join} />}
         </View>
 
-        <TouchableOpacity onPress={() => activeGroup ? pay(activeGroup.id) : navigation?.navigate('CreateCircle')} style={{ marginTop: 22, marginLeft: 'auto', width: 280, height: 74, borderRadius: 38, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: theme.colors.white, fontSize: 15, fontWeight: '500' }}>💵  Quick Deposit</Text>
-        </TouchableOpacity>
       </ScrollView>
+      <TouchableOpacity
+        onPress={() => navigation?.navigate('CreateCircle')}
+        style={{
+          position: 'absolute',
+          right: 22,
+          bottom: 24,
+          width: 58,
+          height: 58,
+          borderRadius: 29,
+          backgroundColor: theme.colors.primary,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: 1,
+          borderColor: 'rgba(255,255,255,0.12)',
+        }}>
+        <Text style={{ color: theme.colors.white, fontSize: 28, lineHeight: 30, fontWeight: '600' }}>+</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }

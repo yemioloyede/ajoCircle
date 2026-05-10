@@ -1,8 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { api, getToken } from '../../lib/api';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+import { api, apiWithBody } from '../../lib/api';
 const PAGE_SIZE = 50;
 
 export default function Payouts() {
@@ -23,14 +21,13 @@ export default function Payouts() {
 
   async function approve(id: string) {
     setMsg('');
-    const r = await fetch(`${API_URL}/api/payouts/${id}/approve`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    const j = await r.json();
-    if (!r.ok) { setMsg(j.error); return; }
-    setMsg('Payout approved — transfer initiated');
-    load();
+    try {
+      await apiWithBody(`/api/payouts/${id}/approve`, 'POST', {});
+      setMsg('Payout approved - transfer initiated');
+      load();
+    } catch (e: any) {
+      setMsg(e.message || 'Approval failed');
+    }
   }
 
   return (
@@ -53,7 +50,7 @@ export default function Payouts() {
               <td style={{ fontFamily: 'monospace', fontSize: 11 }}>{r.transfer_code || '—'}</td>
               <td style={{ fontSize: 12 }}>{new Date(r.created_at).toLocaleDateString()}</td>
               <td>
-                {r.status === 'PENDING' && (
+                {r.status === 'PENDING_REVIEW' && (
                   <button className="btn" style={{ fontSize: 12, padding: '5px 10px' }} onClick={() => approve(r.id)}>Approve</button>
                 )}
               </td>

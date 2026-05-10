@@ -23,3 +23,14 @@ npm run dev:mobile
 
 ## Security note
 This is a full MVP codebase, not a licensed banking system. Before going live with real user funds, complete a security audit, legal/compliance review, Paystack onboarding, webhook testing, KYC verification, and production infrastructure hardening.
+
+## Auto deploy on push
+This repo includes a GitHub Actions workflow at `.github/workflows/auto-deploy.yml`.
+
+To enable automatic deploys:
+1. In GitHub repo settings, open **Secrets and variables** > **Actions**.
+2. Add `VERCEL_DEPLOY_HOOK_URL` with your Vercel deploy hook URL for the admin app.
+3. Add `RENDER_DEPLOY_HOOK_URL` with your Render deploy hook URL for the backend service.
+4. Push to `main` after changing files in `apps/admin/**` or `backend/**`.
+
+The workflow also supports manual trigger via **Actions** > **Auto Deploy** > **Run workflow**.

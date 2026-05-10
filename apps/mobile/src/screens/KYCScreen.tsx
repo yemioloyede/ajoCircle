@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, ScrollView } from 'react-native';
-import { Card, Button, Input } from '../components/ui';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Card, Button, Input, InfoBanner, Pill, SectionHeader } from '../components/ui';
 import { api } from '../api/client';
+import { theme } from '../theme';
 
 const STATUS_COLORS: Record<string, string> = {
   VERIFIED: '#0b6b45',
@@ -47,44 +49,45 @@ export default function KYCScreen() {
     finally { setSaving(false); }
   }
 
-  if (loading) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator color="#0B6B45" size="large" /></View>;
+  if (loading) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}><ActivityIndicator color={theme.colors.primary} size="large" /></View>;
 
   const kycStatus = status?.status || 'NOT_SUBMITTED';
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#F2F7F4', padding: 18 }}>
-      <Text style={{ fontSize: 26, fontWeight: '900', color: '#082017', marginBottom: 4 }}>KYC Verification</Text>
-      <Text style={{ color: '#52655c', marginBottom: 16 }}>Verify your identity to unlock payouts.</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['left', 'right', 'top']}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.xl * 2 }}>
+      <Card style={{ backgroundColor: theme.colors.surfaceAlt }}>
+        <SectionHeader title="KYC Verification" />
+        <Text style={{ color: theme.colors.muted, lineHeight: 20 }}>Verify your identity to unlock payouts and keep the circle compliant.</Text>
+      </Card>
 
       <Card>
-        <Text style={{ fontWeight: '700', marginBottom: 4 }}>Current Status</Text>
-        <Text style={{ fontSize: 20, fontWeight: '900', color: STATUS_COLORS[kycStatus] || '#888' }}>{kycStatus}</Text>
+        <Text style={{ fontWeight: '700', marginBottom: 4, color: theme.colors.text }}>Current Status</Text>
+        <Pill label={kycStatus} tone={kycStatus === 'VERIFIED' ? 'success' : kycStatus === 'PENDING' ? 'warning' : 'secondary'} />
         {status?.rejection_reason && (
-          <Text style={{ color: '#c62828', marginTop: 8 }}>Reason: {status.rejection_reason}</Text>
+          <Text style={{ color: theme.colors.danger, marginTop: 8 }}>Reason: {status.rejection_reason}</Text>
         )}
       </Card>
 
       {(kycStatus === 'NOT_SUBMITTED' || kycStatus === 'REJECTED') && (
         <Card>
-          <Text style={{ fontWeight: '800', marginBottom: 8 }}>
+          <Text style={{ fontWeight: '800', marginBottom: 8, color: theme.colors.text }}>
             {kycStatus === 'REJECTED' ? 'Resubmit KYC' : 'Submit KYC'}
           </Text>
-          <Text style={{ color: '#52655c', fontSize: 13, marginBottom: 8 }}>Your data is encrypted and never stored in plain text.</Text>
-          <Input placeholder="BVN (11 digits)" keyboardType="number-pad" maxLength={11} onChangeText={setBvn} value={bvn} />
-          <Input placeholder="NIN (optional, 11 digits)" keyboardType="number-pad" maxLength={11} onChangeText={setNin} value={nin} />
-          {msg ? <Text style={{ color: msg.includes('submitted') ? '#0b6b45' : 'red', marginBottom: 8, fontWeight: '700' }}>{msg}</Text> : null}
-          {saving
-            ? <ActivityIndicator color="#0B6B45" />
-            : <Button title="Submit KYC" onPress={submit} />}
+          <InfoBanner title="Encrypted by default" message="Your BVN and NIN are handled securely by the backend and are not shown in plain text." tone="primary" />
+          <Input label="BVN" placeholder="11 digits" keyboardType="number-pad" maxLength={11} onChangeText={setBvn} value={bvn} />
+          <Input label="NIN (optional)" placeholder="11 digits" keyboardType="number-pad" maxLength={11} onChangeText={setNin} value={nin} />
+          {msg ? <Text style={{ color: msg.includes('submitted') ? theme.colors.primary : theme.colors.danger, marginBottom: 8, fontWeight: '700' }}>{msg}</Text> : null}
+          {saving ? <ActivityIndicator color={theme.colors.primary} /> : <Button title="Submit KYC" onPress={submit} />}
         </Card>
       )}
 
       {kycStatus === 'PENDING' && (
         <Card>
-          <Text style={{ color: '#e65100', fontWeight: '700' }}>Your KYC is under review. We'll notify you once it's approved.</Text>
+          <Text style={{ color: theme.colors.warning, fontWeight: '700' }}>Your KYC is under review. We'll notify you once it's approved.</Text>
         </Card>
       )}
-      <View style={{ height: 40 }} />
     </ScrollView>
+    </SafeAreaView>
   );
 }

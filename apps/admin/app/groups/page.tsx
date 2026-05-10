@@ -1,8 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { api, getToken } from '../../lib/api';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+import { api, apiWithBody } from '../../lib/api';
 const PAGE_SIZE = 50;
 
 export default function Page() {
@@ -24,14 +22,13 @@ export default function Page() {
 
   async function action(id: string, endpoint: string) {
     setMsg('');
-    const r = await fetch(`${API_URL}/api/admin/groups/${id}/${endpoint}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    const j = await r.json();
-    if (!r.ok) { setMsg(j.error); return; }
-    setMsg(j.message);
-    load();
+    try {
+      const j = await apiWithBody(`/api/admin/groups/${id}/${endpoint}`, 'POST', {});
+      setMsg(j.message || 'Done');
+      load();
+    } catch (e: any) {
+      setMsg(e.message || 'Action failed');
+    }
   }
 
   const filtered = rows.filter(r =>

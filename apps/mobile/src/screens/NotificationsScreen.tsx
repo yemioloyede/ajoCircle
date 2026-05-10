@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, RefreshControl, ActivityIndicator, TouchableOpacity } from 'react-native';
-import { Card } from '../components/ui';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Card, Pill, SectionHeader } from '../components/ui';
 import { api } from '../api/client';
+import { theme } from '../theme';
 
 export default function NotificationsScreen() {
   const [items, setItems] = useState<any[]>([]);
@@ -48,22 +50,25 @@ export default function NotificationsScreen() {
     setUnread(0);
   }
 
-  if (loading) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator color="#0B6B45" size="large" /></View>;
+  if (loading) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}><ActivityIndicator color={theme.colors.primary} size="large" /></View>;
 
   return (
-    <FlatList
-      style={{ flex: 1, backgroundColor: '#F2F7F4', padding: 18 }}
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['left', 'right', 'top']}>
+      <FlatList
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.xl * 2 }}
       ListHeaderComponent={
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <Text style={{ fontSize: 26, fontWeight: '900', color: '#082017' }}>
-            Notifications {unread > 0 ? `(${unread})` : ''}
+        <Card style={{ backgroundColor: theme.colors.surfaceAlt }}>
+          <SectionHeader title={`Notifications${unread > 0 ? ` (${unread})` : ''}`} />
+          <Text style={{ color: theme.colors.muted, lineHeight: 20 }}>
+            Stay on top of contribution reminders, payout approvals, and group activity.
           </Text>
           {unread > 0 && (
-            <TouchableOpacity onPress={markAllRead}>
-              <Text style={{ color: '#0B6B45', fontWeight: '700', fontSize: 13 }}>Mark all read</Text>
+            <TouchableOpacity onPress={markAllRead} style={{ marginTop: theme.spacing.sm }}>
+              <Pill label="Mark all read" tone="primary" />
             </TouchableOpacity>
           )}
-        </View>
+        </Card>
       }
       data={items}
       keyExtractor={item => item.id}
@@ -71,11 +76,11 @@ export default function NotificationsScreen() {
         <TouchableOpacity onPress={() => !item.is_read && markRead(item.id)}>
           <Card>
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              {!item.is_read && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#0B6B45', marginTop: 6 }} />}
+              {!item.is_read && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.primary, marginTop: 6 }} />}
               <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: item.is_read ? '500' : '800' }}>{item.title}</Text>
-                <Text style={{ color: '#52655c', fontSize: 13, marginTop: 2 }}>{item.body}</Text>
-                <Text style={{ color: '#aaa', fontSize: 11, marginTop: 4 }}>{new Date(item.created_at).toLocaleString()}</Text>
+                <Text style={{ fontWeight: item.is_read ? '600' : '900', color: theme.colors.text }}>{item.title}</Text>
+                <Text style={{ color: theme.colors.muted, fontSize: 13, marginTop: 2, lineHeight: 18 }}>{item.body}</Text>
+                <Text style={{ color: theme.colors.mutedSoft, fontSize: 11, marginTop: 4 }}>{new Date(item.created_at).toLocaleString()}</Text>
               </View>
             </View>
           </Card>
@@ -83,8 +88,9 @@ export default function NotificationsScreen() {
       )}
       onEndReached={() => hasMore && load()}
       onEndReachedThreshold={0.5}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor="#0B6B45" />}
-      ListEmptyComponent={<Text style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>No notifications.</Text>}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.colors.primary} />}
+      ListEmptyComponent={<Card><Text style={{ color: theme.colors.muted, textAlign: 'center' }}>No notifications.</Text></Card>}
     />
+    </SafeAreaView>
   );
 }

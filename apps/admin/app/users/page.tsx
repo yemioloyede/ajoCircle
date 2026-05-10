@@ -1,8 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { api, getToken } from '../../lib/api';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+import { api, apiWithBody } from '../../lib/api';
 const PAGE_SIZE = 50;
 
 export default function Page() {
@@ -30,13 +28,7 @@ export default function Page() {
   async function action(endpoint: string, method = 'POST', body?: any) {
     setMsg('');
     try {
-      const r = await fetch(`${API_URL}${endpoint}`, {
-        method,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-        body: body ? JSON.stringify(body) : undefined,
-      });
-      const j = await r.json();
-      if (!r.ok) throw new Error(j.error);
+      const j = await apiWithBody(endpoint, method, body || {});
       setMsg(j.message || 'Done');
       load();
       if (selected) setSelected(null);

@@ -11,11 +11,12 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
 
-  // Decode JWT payload (no signature verify — trust the backend to reject invalid tokens)
   try {
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+    const payloadSegment = token.split('.')[1];
+    if (!payloadSegment) return NextResponse.redirect(new URL('/login', req.url));
+    const payload = JSON.parse(atob(payloadSegment.replace(/-/g, '+').replace(/_/g, '/')));
     const adminRoles = ['COMPLIANCE_ADMIN', 'SUPER_ADMIN'];
-    if (!payload.role || !adminRoles.includes(payload.role)) {
+    if (!payload?.role || !adminRoles.includes(payload.role)) {
       return NextResponse.redirect(new URL('/login', req.url));
     }
     if (payload.exp && payload.exp * 1000 < Date.now()) {

@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 
 export const API_URL: string =
-  (Constants.expoConfig?.extra?.apiUrl as string) || 'http://localhost:5000';
+  (Constants.expoConfig?.extra?.apiUrl as string) || 'https://ajocircle.onrender.com';
 
 export async function api(path: string, options: any = {}) {
   const token = await AsyncStorage.getItem('token');

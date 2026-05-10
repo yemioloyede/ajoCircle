@@ -19,8 +19,22 @@ const app = express();
 app.use(helmet());
 
 // CORS
+const allowedOrigins = [
+  env.appOrigin,
+  'https://ajo-circle.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:19006',
+  'http://localhost:3001',
+];
+
 app.use(cors({
-  origin: [env.appOrigin, 'http://localhost:19006', 'http://localhost:3001'],
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error('Not allowed by CORS'));
+  },
   credentials: true,
 }));
 

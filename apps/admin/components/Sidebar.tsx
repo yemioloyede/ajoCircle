@@ -16,8 +16,8 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
 
-  function logout() {
-    document.cookie = 'adminToken=; path=/; max-age=0; SameSite=Strict';
+  async function logout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
   }
 

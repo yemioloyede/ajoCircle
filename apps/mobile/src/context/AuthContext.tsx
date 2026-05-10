@@ -18,7 +18,7 @@ export function AuthProvider({ children }: { children: any }) {
         if (stored) {
           const j = await api('/api/auth/me');
           setToken(stored);
-          setUser(j.user);
+          setUser(j.user ?? j);
         }
       } catch {
         await AsyncStorage.removeItem('token');

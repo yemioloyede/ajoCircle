@@ -17,7 +17,9 @@ async function ps(path: string, method = 'GET', body?: any) {
 
 export function verifyPaystackSignature(raw: string, signature?: string) {
   if (!signature) return false;
-  const hash = crypto.createHmac('sha512', env.paystackSecretKey).update(raw).digest('hex');
+  const secret = env.paystackWebhookSecret;
+  if (!secret) return false;
+  const hash = crypto.createHmac('sha512', secret).update(raw).digest('hex');
   return crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(signature, 'hex'));
 }
 

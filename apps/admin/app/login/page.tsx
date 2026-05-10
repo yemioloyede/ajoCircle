@@ -1,8 +1,6 @@
 'use client';
 import { useState } from 'react';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -12,20 +10,13 @@ export default function Login() {
   async function submit() {
     setMsg(''); setLoading(true);
     try {
-      const r = await fetch(`${API}/api/auth/login`, {
+      const r = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
       const j = await r.json();
-      if (j.token) {
-        const adminRoles = ['COMPLIANCE_ADMIN', 'SUPER_ADMIN'];
-        const payload = JSON.parse(atob(j.token.split('.')[1]));
-        if (!adminRoles.includes(payload.role)) {
-          setMsg('Access denied: insufficient permissions'); return;
-        }
-        // Store in a cookie (JS-accessible; httpOnly requires server-side set-cookie)
-        document.cookie = `adminToken=${j.token}; path=/; max-age=${12 * 3600}; SameSite=Strict`;
+      if (r.ok) {
         window.location.href = '/dashboard';
       } else {
         setMsg(j.error || 'Login failed');

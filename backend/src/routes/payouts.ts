@@ -77,11 +77,26 @@ r.post('/:id/approve', requireRole('COMPLIANCE_ADMIN', 'SUPER_ADMIN'), async (re
 });
 
 r.get('/mine', async (req, res) => {
-  const rows = await query(
-    `select p.*, g.name as group_name from payouts p join savings_groups g on g.id=p.group_id where p.recipient_user_id=$1 order by p.created_at desc`,
-    [req.user!.id]
-  );
-  res.json({ payouts: rows.rows });
+  const limit = Math.min(Number(req.query.limit) || 50, 100);
+  const before = req.query.before as string | undefined;
+
+  const rows = before
+    ? await query(
+      `select p.*, g.name as group_name from payouts p
+       join savings_groups g on g.id=p.group_id
+       where p.recipient_user_id=$1 and p.created_at < $2
+       order by p.created_at desc limit $3`,
+      [req.user!.id, before, limit]
+    )
+    : await query(
+      `select p.*, g.name as group_name from payouts p
+       join savings_groups g on g.id=p.group_id
+       where p.recipient_user_id=$1
+       order by p.created_at desc limit $2`,
+      [req.user!.id, limit]
+    );
+
+  res.json({ payouts: rows.rows, nextCursor: rows.rows[rows.rows.length - 1]?.created_at ?? null });
 });
 
 r.get('/', requireRole('COMPLIANCE_ADMIN', 'SUPER_ADMIN'), async (req, res) => {
@@ -98,7 +113,7 @@ r.get('/', requireRole('COMPLIANCE_ADMIN', 'SUPER_ADMIN'), async (req, res) => {
     ),
     query('select count(*) from payouts'),
   ]);
-  res.json({ payouts: data.rows, total: Number(count.rows[0].count) });
+  res.json({ payouts: data.rows, total: Number(count.rows[0].count), limit, offset });
 });
 
 export default r;

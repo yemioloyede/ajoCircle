@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, RefreshControl, ActivityIndicator, Alert } from 'react-native';
-import { Card, Button, Input } from '../components/ui';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Card, Button, Input, Pill, SectionHeader } from '../components/ui';
 import { api } from '../api/client';
+import { theme } from '../theme';
 
 export default function BankAccountScreen() {
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -74,53 +76,55 @@ export default function BankAccountScreen() {
     ]);
   }
 
-  if (loading) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator color="#0B6B45" size="large" /></View>;
+  if (loading) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}><ActivityIndicator color={theme.colors.primary} size="large" /></View>;
 
   return (
-    <FlatList
-      style={{ flex: 1, backgroundColor: '#F2F7F4', padding: 18 }}
-      ListHeaderComponent={
-        <>
-          <Text style={{ fontSize: 26, fontWeight: '900', color: '#082017', marginBottom: 4 }}>Bank Accounts</Text>
-          {error ? <Text style={{ color: 'red', marginBottom: 8 }}>{error}</Text> : null}
-          {msg ? <Text style={{ color: msg.includes('added') ? '#0b6b45' : 'red', marginBottom: 8, fontWeight: '700' }}>{msg}</Text> : null}
-          {!adding && <Button title="+ Add Bank Account" onPress={() => setAdding(true)} />}
-          {adding && (
-            <Card>
-              <Text style={{ fontWeight: '800', marginBottom: 8 }}>Add Bank Account</Text>
-              <Input placeholder="Bank code (e.g. 057 for Zenith)" onChangeText={setBankCode} value={bankCode} keyboardType="number-pad" />
-              <Input placeholder="Account number (10 digits)" onChangeText={setAccountNumber} value={accountNumber} keyboardType="number-pad" maxLength={10} />
-              <Text style={{ color: '#52655c', marginBottom: 8 }}>We'll resolve your account name via Paystack.</Text>
-              {saving
-                ? <ActivityIndicator color="#0B6B45" />
-                : <Button title="Save Account" onPress={addAccount} />}
-              <Text onPress={() => setAdding(false)} style={{ color: '#888', textAlign: 'center', marginTop: 8 }}>Cancel</Text>
-            </Card>
-          )}
-          <Text style={{ fontSize: 18, fontWeight: '800', marginTop: 16, marginBottom: 4 }}>Saved Accounts</Text>
-        </>
-      }
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['left', 'right', 'top']}>
+      <FlatList
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: theme.spacing.lg, paddingBottom: theme.spacing.xl * 2 }}
+        ListHeaderComponent={
+          <Card style={{ backgroundColor: theme.colors.surfaceAlt }}>
+            <SectionHeader title="Bank Accounts" />
+            <Text style={{ color: theme.colors.muted, lineHeight: 20 }}>Manage the bank accounts where payouts will be sent.</Text>
+            {error ? <Text style={{ color: theme.colors.danger, marginTop: 8 }}>{error}</Text> : null}
+            {msg ? <Text style={{ color: msg.includes('added') ? theme.colors.primary : theme.colors.danger, marginTop: 8, fontWeight: '700' }}>{msg}</Text> : null}
+            {!adding && <Button title="+ Add Bank Account" onPress={() => setAdding(true)} />}
+            {adding && (
+              <Card>
+                <Pill label="Primary payout destination" tone="primary" />
+                <Input label="Bank code" placeholder="e.g. 057 for Zenith" onChangeText={setBankCode} value={bankCode} keyboardType="number-pad" />
+                <Input label="Account number" placeholder="10 digits" onChangeText={setAccountNumber} value={accountNumber} keyboardType="number-pad" maxLength={10} />
+                <Text style={{ color: theme.colors.muted, marginBottom: 8 }}>We'll resolve your account name via Paystack.</Text>
+                {saving ? <ActivityIndicator color={theme.colors.primary} /> : <Button title="Save Account" onPress={addAccount} />}
+                <Text onPress={() => setAdding(false)} style={{ color: theme.colors.mutedSoft, textAlign: 'center', marginTop: 8 }}>Cancel</Text>
+              </Card>
+            )}
+            <Text style={{ fontSize: 18, fontWeight: '800', marginTop: 16, marginBottom: 4, color: theme.colors.text }}>Saved Accounts</Text>
+          </Card>
+        }
       data={accounts}
       keyExtractor={item => item.id}
       renderItem={({ item }) => (
         <Card>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontWeight: '800' }}>{item.account_name}</Text>
-              <Text style={{ color: '#52655c' }}>{item.bank_name}</Text>
-              {item.is_primary && <Text style={{ color: '#0b6b45', fontWeight: '700', fontSize: 12, marginTop: 2 }}>PRIMARY</Text>}
+              <Text style={{ fontWeight: '900', color: theme.colors.text }}>{item.account_name}</Text>
+              <Text style={{ color: theme.colors.muted }}>{item.bank_name}</Text>
+              {item.is_primary && <Pill label="PRIMARY" tone="success" />}
             </View>
             <View style={{ gap: 6 }}>
               {!item.is_primary && (
-                <Text onPress={() => setPrimary(item.id)} style={{ color: '#0B6B45', fontWeight: '700', fontSize: 13 }}>Set primary</Text>
+                <Text onPress={() => setPrimary(item.id)} style={{ color: theme.colors.primary, fontWeight: '800', fontSize: 13 }}>Set primary</Text>
               )}
-              <Text onPress={() => remove(item.id)} style={{ color: '#c62828', fontWeight: '700', fontSize: 13 }}>Remove</Text>
+              <Text onPress={() => remove(item.id)} style={{ color: theme.colors.danger, fontWeight: '800', fontSize: 13 }}>Remove</Text>
             </View>
           </View>
         </Card>
       )}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor="#0B6B45" />}
-      ListEmptyComponent={<Text style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>No bank accounts yet.</Text>}
-    />
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.colors.primary} />}
+      ListEmptyComponent={<Card><Text style={{ color: theme.colors.muted, textAlign: 'center' }}>No bank accounts yet.</Text></Card>}
+      />
+    </SafeAreaView>
   );
 }

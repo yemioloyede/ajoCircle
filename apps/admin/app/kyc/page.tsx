@@ -1,8 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { api, getToken } from '../../lib/api';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+import { api, apiWithBody } from '../../lib/api';
 
 export default function KYCPage() {
   const [rows, setRows] = useState<any[]>([]);
@@ -23,29 +21,26 @@ export default function KYCPage() {
 
   async function approve(id: string) {
     setMsg('');
-    const r = await fetch(`${API_URL}/api/admin/kyc/${id}/approve`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    const j = await r.json();
-    if (!r.ok) { setMsg(j.error); return; }
-    setMsg('KYC approved');
-    load();
+    try {
+      await apiWithBody(`/api/admin/kyc/${id}/approve`, 'POST', {});
+      setMsg('KYC approved');
+      load();
+    } catch (e: any) {
+      setMsg(e.message || 'Approve failed');
+    }
   }
 
   async function reject(id: string) {
     if (!rejectReason.trim()) { setMsg('Enter a rejection reason'); return; }
-    const r = await fetch(`${API_URL}/api/admin/kyc/${id}/reject`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
-      body: JSON.stringify({ reason: rejectReason }),
-    });
-    const j = await r.json();
-    if (!r.ok) { setMsg(j.error); return; }
-    setMsg('KYC rejected');
-    setRejectTarget(null);
-    setRejectReason('');
-    load();
+    try {
+      await apiWithBody(`/api/admin/kyc/${id}/reject`, 'POST', { reason: rejectReason });
+      setMsg('KYC rejected');
+      setRejectTarget(null);
+      setRejectReason('');
+      load();
+    } catch (e: any) {
+      setMsg(e.message || 'Reject failed');
+    }
   }
 
   return (

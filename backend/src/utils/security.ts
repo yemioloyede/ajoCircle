@@ -7,6 +7,10 @@ export const hashPassword = (p: string) => bcrypt.hash(p, 12);
 export const verifyPassword = (p: string, h: string) => bcrypt.compare(p, h);
 export const signToken = (payload: object) => jwt.sign(payload, env.jwtSecret, { expiresIn: '12h' });
 export const verifyToken = (token: string) => jwt.verify(token, env.jwtSecret) as any;
+export const signPasswordResetToken = (payload: { id: string; email: string }) =>
+  jwt.sign(payload, `${env.jwtSecret}:pwd-reset`, { expiresIn: '30m' });
+export const verifyPasswordResetToken = (token: string) =>
+  jwt.verify(token, `${env.jwtSecret}:pwd-reset`) as { id: string; email: string };
 export const nairaToKobo = (amount: number) => Math.round(amount * 100);
 
 const ALGO = 'aes-256-gcm';

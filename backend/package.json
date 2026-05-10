@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "test": "vitest run"
   },
   "dependencies": {
     "@types/bcryptjs": "latest",
@@ -23,13 +24,16 @@
     "express-rate-limit": "latest",
     "helmet": "latest",
     "jsonwebtoken": "latest",
+    "nodemailer": "^6.9.15",
     "pg": "latest",
     "uuid": "latest",
     "zod": "latest"
   },
   "devDependencies": {
+    "@types/nodemailer": "^6.4.16",
     "@types/pg": "^8.20.0",
     "ts-node-dev": "latest",
-    "typescript": "latest"
+    "typescript": "latest",
+    "vitest": "^2.1.9"
   }
 }
