@@ -26,10 +26,15 @@
   "include": [
     "next-env.d.ts",
     ".next/types/**/*.ts",
-    "**/*.ts",
-    "**/*.tsx"
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "middleware.ts",
+    "apps/admin/**/*.ts",
+    "apps/admin/**/*.tsx"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "apps/mobile/**",
+    "backend/**"
   ]
 }

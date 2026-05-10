@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "buildCommand": "npm run build:web",
   "env": {
     "NEXT_PUBLIC_API_URL": "https://ajocircle.onrender.com"
   }
