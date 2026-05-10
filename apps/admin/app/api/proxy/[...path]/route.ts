@@ -11,7 +11,7 @@ async function forward(req: NextRequest, ctx: Ctx, method: string) {
   const qs = req.nextUrl.search || '';
   const joined = (ctx.params.path || []).join('/');
   const upstreamPath = joined.startsWith('api/') ? `/${joined}` : `/api/${joined}`;
-  const url = `${API}${upstreamPath}${qs}`;
+  const fallbackPath = upstreamPath.startsWith('/api/') ? upstreamPath.slice(4) : upstreamPath;
 
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
@@ -23,18 +23,27 @@ async function forward(req: NextRequest, ctx: Ctx, method: string) {
     if (body) headers['Content-Type'] = 'application/json';
   }
 
-  const upstream = await fetch(url, {
+  const upstream = await fetch(`${API}${upstreamPath}${qs}`, {
     method,
     headers,
     body,
     cache: 'no-store',
   });
 
-  const text = await upstream.text();
+  const finalUpstream = upstream.status === 404 && fallbackPath !== upstreamPath
+    ? await fetch(`${API}${fallbackPath}${qs}`, {
+      method,
+      headers,
+      body,
+      cache: 'no-store',
+    })
+    : upstream;
+
+  const text = await finalUpstream.text();
   return new NextResponse(text, {
-    status: upstream.status,
+    status: finalUpstream.status,
     headers: {
-      'Content-Type': upstream.headers.get('Content-Type') || 'application/json',
+      'Content-Type': finalUpstream.headers.get('Content-Type') || 'application/json',
     },
   });
 }
