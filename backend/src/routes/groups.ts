@@ -212,11 +212,36 @@ r.get('/:id', async (req, res) => {
     : null;
   const isFinished = (g.rows[0].status || 'ACTIVE') !== 'ACTIVE' || (totalRounds > 0 && completedRounds >= totalRounds);
 
+  let mergedHistory = history.rows;
+  if (!mergedHistory.length && g.rows[0].wallet_id) {
+    const ledgerFallback = await query(
+      `select le.id,
+              le.created_at,
+              case
+                when le.type ilike '%PAYOUT%' then 'PAYOUT'
+                else 'CONTRIBUTION'
+              end as activity_type,
+              le.amount_kobo,
+              case
+                when le.direction='CREDIT' then 'SUCCESS'
+                else 'DEBIT'
+              end as status,
+              'Wallet Activity' as actor_name,
+              le.reference
+       from ledger_entries le
+       where le.wallet_id=$1
+       order by le.created_at desc
+       limit 100`,
+      [g.rows[0].wallet_id]
+    );
+    mergedHistory = ledgerFallback.rows;
+  }
+
   res.json({
     group: g.rows[0],
     members: members.rows,
     ledger: ledger.rows,
-    history: history.rows,
+    history: mergedHistory,
     schedule: {
       completedRounds,
       totalRounds,
