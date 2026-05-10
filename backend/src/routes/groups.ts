@@ -144,6 +144,18 @@ r.get('/:id', async (req, res) => {
   const id = req.params.id;
   const g = await query('select * from savings_groups where id=$1', [id]);
   if (!g.rowCount) return res.status(404).json({ error: 'Not found' });
+
+  const groupWallet = g.rows[0].wallet_id
+    ? { id: g.rows[0].wallet_id }
+    : (await query(
+      `select id from wallets
+       where owner_type='GROUP' and owner_id=$1
+       order by created_at asc
+       limit 1`,
+      [id]
+    )).rows[0];
+  const walletId = groupWallet?.id || null;
+
   const [members, ledger, paidPayouts, history] = await Promise.all([
     query(
       'select gm.*, u.full_name,u.email,u.phone from group_members gm join users u on u.id=gm.user_id where gm.group_id=$1 order by gm.payout_position',
@@ -151,7 +163,7 @@ r.get('/:id', async (req, res) => {
     ),
     query(
       'select * from ledger_entries where wallet_id=$1 order by created_at desc limit 50',
-      [g.rows[0].wallet_id]
+      [walletId]
     ),
     query(
       "select recipient_user_id, created_at from payouts where group_id=$1 and status='PAID' order by created_at asc",
@@ -213,7 +225,7 @@ r.get('/:id', async (req, res) => {
   const isFinished = (g.rows[0].status || 'ACTIVE') !== 'ACTIVE' || (totalRounds > 0 && completedRounds >= totalRounds);
 
   let mergedHistory = history.rows;
-  if (!mergedHistory.length && g.rows[0].wallet_id) {
+  if (!mergedHistory.length && walletId) {
     const ledgerFallback = await query(
       `select le.id,
               le.created_at,
@@ -232,7 +244,7 @@ r.get('/:id', async (req, res) => {
        where le.wallet_id=$1
        order by le.created_at desc
        limit 100`,
-      [g.rows[0].wallet_id]
+      [walletId]
     );
     mergedHistory = ledgerFallback.rows;
   }
