@@ -12,8 +12,18 @@ import admin from './routes/admin';
 import users from './routes/users';
 import notifications from './routes/notifications';
 import ledger from './routes/ledger';
+import payments from './routes/payments';
+import { pool } from './config/db';
+import { initCountryConfigService } from './services/country-config';
+import { initPaymentProviderSelector } from './services/payment-provider-selector';
+import UnifiedWebhookHandler from './middleware/unified-webhook-handler';
 
 const app = express();
+
+// Initialize Phase 1 services once at boot so singleton-based APIs can use them safely.
+initCountryConfigService(pool);
+initPaymentProviderSelector(pool);
+const unifiedWebhookHandler = new UnifiedWebhookHandler(pool);
 
 // Security headers
 app.use(helmet());
@@ -74,11 +84,13 @@ app.use('/api/auth', auth);
 app.use('/api/groups', groups);
 app.use('/api/contributions', contributions);
 app.use('/api/webhooks', webhooks);
+app.use('/api', unifiedWebhookHandler.getRouter());
 app.use('/api/payouts', payouts);
 app.use('/api/admin', admin);
 app.use('/api/users', users);
 app.use('/api/notifications', notifications);
 app.use('/api/ledger', ledger);
+app.use('/api/payments', payments);
 
 // Global error handler
 app.use((err: any, req: any, res: any, _next: any) => {

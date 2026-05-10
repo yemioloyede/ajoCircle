@@ -105,6 +105,17 @@ export abstract class PaymentProvider {
   }
 
   /**
+   * Read-only provider metadata for selection/debug APIs.
+   */
+  getProviderMeta(): { name: string; countryCode: string; currencyCode: string } {
+    return {
+      name: this.name,
+      countryCode: this.countryCode,
+      currencyCode: this.currencyCode,
+    };
+  }
+
+  /**
    * Verify account details (ACH, bank transfer, mobile money)
    */
   abstract verifyAccountDetails(

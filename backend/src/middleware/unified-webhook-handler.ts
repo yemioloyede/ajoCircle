@@ -53,12 +53,12 @@ export class UnifiedWebhookHandler {
     this.router.post('/webhooks/payment', this.handlePaymentWebhook.bind(this));
 
     // Provider-specific endpoints (in case needed for debugging)
-    this.router.post('/webhooks/paystack', this.handlePaystackWebhook.bind(this));
-    this.router.post('/webhooks/stripe', this.handleStripeWebhook.bind(this));
-    this.router.post('/webhooks/flutterwave', this.handleFlutterwaveWebhook.bind(this));
-    this.router.post('/webhooks/mpesa', this.handleMpesaWebhook.bind(this));
-    this.router.post('/webhooks/razorpay', this.handleRazorpayWebhook.bind(this));
-    this.router.post('/webhooks/wise', this.handleWiseWebhook.bind(this));
+    this.router.post('/provider-webhooks/paystack', this.handlePaystackWebhook.bind(this));
+    this.router.post('/provider-webhooks/stripe', this.handleStripeWebhook.bind(this));
+    this.router.post('/provider-webhooks/flutterwave', this.handleFlutterwaveWebhook.bind(this));
+    this.router.post('/provider-webhooks/mpesa', this.handleMpesaWebhook.bind(this));
+    this.router.post('/provider-webhooks/razorpay', this.handleRazorpayWebhook.bind(this));
+    this.router.post('/provider-webhooks/wise', this.handleWiseWebhook.bind(this));
   }
 
   /**
