@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { Pool } from 'pg';
-import { getPaymentProviderSelector } from './payment-provider-selector';
-import { getCountryConfigService } from './country-config';
+import { getPaymentProviderSelector } from '../services/payment-provider-selector';
+import { getCountryConfigService } from '../services/country-config';
 
 /**
  * Unified Webhook Handler

@@ -1,7 +1,7 @@
 import { Pool } from 'pg';
-import Redis from 'redis';
 import { PaymentProvider, PaystackProvider, StripeProvider, MockProvider } from './payment-provider';
 import { getCountryConfigService } from './country-config';
+import { CacheClient, InMemoryCache } from './cache';
 
 /**
  * PaymentProviderSelector
@@ -35,15 +35,15 @@ export interface ProviderHealthStatus {
 
 export class PaymentProviderSelector {
   private db: Pool;
-  private redis: Redis.RedisClient;
+  private cache: CacheClient;
   private providers: Map<string, PaymentProvider> = new Map();
   private providerCache: Map<string, PaymentProvider> = new Map();
   private healthCheckInterval = 300000; // 5 minutes
   private decayFactor = 0.9; // Exponential decay for error tracking
 
-  constructor(db: Pool, redis: Redis.RedisClient) {
+  constructor(db: Pool, cache: CacheClient = new InMemoryCache()) {
     this.db = db;
-    this.redis = redis;
+    this.cache = cache;
     this.initializeProviders();
     this.startHealthChecks();
   }
@@ -231,18 +231,14 @@ export class PaymentProviderSelector {
     const key = `provider_health:${providerName}:${countryCode}`;
     const timestamp = new Date().toISOString();
 
-    // Store in Redis for TTL
-    this.redis.lpush(
+    await this.cache.lpush(
       key,
       JSON.stringify({
         success,
         timestamp,
         amount,
         errorCode,
-      }),
-      (err) => {
-        if (err) console.error('[PaymentProviderSelector] Redis error:', err);
-      }
+      })
     );
 
     // Also log to database for long-term analytics
@@ -258,38 +254,23 @@ export class PaymentProviderSelector {
   async getProviderHealth(providerName: string, countryCode?: string): Promise<ProviderHealthStatus> {
     const cacheKey = `provider_health:${providerName}:${countryCode || 'global'}`;
 
-    // Check cache first
-    return new Promise((resolve) => {
-      this.redis.lrange(cacheKey, 0, 99, async (err, results) => {
-        if (err) {
-          resolve({
-            providerName,
-            isHealthy: true,
-            lastChecked: new Date(),
-            failureCount: 0,
-            successRate: 1.0,
-          });
-          return;
-        }
+    const results = await this.cache.lrange(cacheKey, 0, 99);
+    const transactions = results.map((r: string) => JSON.parse(r) as { success: boolean });
+    const totalTxns = transactions.length;
+    const successfulTxns = transactions.filter((t) => t.success).length;
+    const failureCount = transactions.filter((t) => !t.success).length;
+    const successRate = totalTxns > 0 ? successfulTxns / totalTxns : 1.0;
 
-        const transactions = results.map((r) => JSON.parse(r));
-        const totalTxns = transactions.length;
-        const successfulTxns = transactions.filter((t) => t.success).length;
-        const failureCount = transactions.filter((t) => !t.success).length;
-        const successRate = totalTxns > 0 ? successfulTxns / totalTxns : 1.0;
+    // Provider is unhealthy if success rate < 90%
+    const isHealthy = successRate >= 0.9;
 
-        // Provider is unhealthy if success rate < 90%
-        const isHealthy = successRate >= 0.9;
-
-        resolve({
-          providerName,
-          isHealthy,
-          lastChecked: new Date(),
-          failureCount,
-          successRate,
-        });
-      });
-    });
+    return {
+      providerName,
+      isHealthy,
+      lastChecked: new Date(),
+      failureCount,
+      successRate,
+    };
   }
 
   /**
@@ -400,9 +381,9 @@ let selectorInstance: PaymentProviderSelector | null = null;
 
 export function initPaymentProviderSelector(
   db: Pool,
-  redis: Redis.RedisClient
+  cache?: CacheClient
 ): PaymentProviderSelector {
-  selectorInstance = new PaymentProviderSelector(db, redis);
+  selectorInstance = new PaymentProviderSelector(db, cache || new InMemoryCache());
   return selectorInstance;
 }
 

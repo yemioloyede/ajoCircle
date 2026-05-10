@@ -1,5 +1,4 @@
 import { Pool } from 'pg';
-import fetch from 'node-fetch';
 
 /**
  * PaymentProviderInterface
@@ -78,6 +77,8 @@ export interface FeeResult {
   fixedFeeKobo: number;
   totalFeeKobo: number;
 }
+
+type JsonResponse = { [key: string]: unknown };
 
 export abstract class PaymentProvider {
   protected name: string;

@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import Redis from 'redis';
+import { CacheClient, InMemoryCache } from './cache';
 
 /**
  * CountryConfigService
@@ -77,13 +77,13 @@ export interface ExchangeRate {
 
 export class CountryConfigService {
   private db: Pool;
-  private redis: Redis.RedisClient;
+  private cache: CacheClient;
   private cacheTtl = 3600; // 1 hour default
   private exchangeRateCacheTtl = 300; // 5 minutes for rates
 
-  constructor(db: Pool, redis: Redis.RedisClient) {
+  constructor(db: Pool, cache: CacheClient = new InMemoryCache()) {
     this.db = db;
-    this.redis = redis;
+    this.cache = cache;
   }
 
   /**
@@ -345,15 +345,8 @@ export class CountryConfigService {
       await this.deleteFromCache(`country:${countryCode}`);
       await this.deleteFromCache(`provider_config:${countryCode}:*`);
     } else {
-      // Invalidate all country caches
-      const pattern = 'country:*';
-      await this.redis.eval(`
-        local keys = redis.call('keys', KEYS[1])
-        for i=1,#keys do
-          redis.call('del', keys[i])
-        end
-        return #keys
-      `, 1, pattern);
+      await this.cache.delByPattern('country:*');
+      await this.cache.delByPattern('provider_config:*');
     }
   }
 
@@ -423,38 +416,28 @@ export class CountryConfigService {
 
   // Cache helpers
   private async getFromCache<T>(key: string): Promise<T | null> {
-    return new Promise((resolve, reject) => {
-      this.redis.get(key, (err, data) => {
-        if (err) reject(err);
-        else resolve(data ? JSON.parse(data) : null);
-      });
-    });
+    const data = await this.cache.get(key);
+    return data ? (JSON.parse(data) as T) : null;
   }
 
   private async setInCache<T>(key: string, value: T, ttl: number): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.redis.setex(key, ttl, JSON.stringify(value), (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+    await this.cache.setex(key, ttl, JSON.stringify(value));
   }
 
   private async deleteFromCache(key: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.redis.del(key, (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+    if (key.includes('*')) {
+      await this.cache.delByPattern(key);
+      return;
+    }
+    await this.cache.del(key);
   }
 }
 
 // Export singleton instance
 let instance: CountryConfigService | null = null;
 
-export function initCountryConfigService(db: Pool, redis: Redis.RedisClient): CountryConfigService {
-  instance = new CountryConfigService(db, redis);
+export function initCountryConfigService(db: Pool, cache?: CacheClient): CountryConfigService {
+  instance = new CountryConfigService(db, cache || new InMemoryCache());
   return instance;
 }
 
