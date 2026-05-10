@@ -4,6 +4,18 @@ const PUBLIC_PATHS = ['/login'];
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+
+  // Never protect framework/static assets.
+  if (
+    pathname.startsWith('/_next/') ||
+    pathname === '/favicon.ico' ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml' ||
+    /\.[a-zA-Z0-9]+$/.test(pathname)
+  ) {
+    return NextResponse.next();
+  }
+
   if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) return NextResponse.next();
 
   const token = req.cookies.get('adminToken')?.value;
@@ -30,5 +42,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!_next|favicon.ico|robots.txt|sitemap.xml).*)'],
 };
