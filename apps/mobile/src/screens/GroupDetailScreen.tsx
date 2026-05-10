@@ -28,6 +28,10 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
   const [confirmErr, setConfirmErr] = useState('');
   const [inviteEmailOrPhone, setInviteEmailOrPhone] = useState('');
   const [addingMember, setAddingMember] = useState(false);
+  const [historyQuery, setHistoryQuery] = useState('');
+  const [historyTypeFilter, setHistoryTypeFilter] = useState<'ALL' | 'CONTRIBUTION' | 'PAYOUT'>('ALL');
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<'ALL' | 'SUCCESSFUL' | 'PENDING' | 'FAILED'>('ALL');
+  const [historyVisibleCount, setHistoryVisibleCount] = useState(12);
 
   async function load() {
     try {
@@ -67,6 +71,35 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
     () => group?.history || group?.ledger || group?.transactions || [],
     [group],
   );
+  const filteredHistory = useMemo(() => {
+    const q = historyQuery.trim().toLowerCase();
+    return history.filter((entry: any) => {
+      const type = String(entry.activity_type || '').toUpperCase();
+      const status = String(entry.status || '').toUpperCase();
+      const actor = String(entry.actor_name || '').toLowerCase();
+      const ref = String(entry.reference || '').toLowerCase();
+
+      const typeMatch = historyTypeFilter === 'ALL' || type === historyTypeFilter;
+      const statusMatch = historyStatusFilter === 'ALL'
+        || (historyStatusFilter === 'SUCCESSFUL' && ['SUCCESS', 'PAID', 'APPROVED'].includes(status))
+        || (historyStatusFilter === 'PENDING' && ['PENDING', 'PENDING_REVIEW', 'PROCESSING'].includes(status))
+        || (historyStatusFilter === 'FAILED' && ['FAILED', 'REVERSED', 'CANCELLED'].includes(status));
+      const searchMatch = !q
+        || actor.includes(q)
+        || ref.includes(q)
+        || type.toLowerCase().includes(q)
+        || status.toLowerCase().includes(q);
+
+      return typeMatch && statusMatch && searchMatch;
+    });
+  }, [history, historyQuery, historyTypeFilter, historyStatusFilter]);
+  const visibleHistory = useMemo(
+    () => filteredHistory.slice(0, historyVisibleCount),
+    [filteredHistory, historyVisibleCount],
+  );
+  useEffect(() => {
+    setHistoryVisibleCount(12);
+  }, [historyQuery, historyTypeFilter, historyStatusFilter, tab]);
   const completion = analytics?.completionRate ?? 0;
   const activeMembers = analytics?.activeMemberCount ?? members.length ?? 0;
   const potKobo = analytics?.totalContributionsKobo ?? group?.total_pot_kobo ?? 0;
@@ -322,9 +355,54 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
           <View style={{ marginTop: 16 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '900' }}>Contribution & Payout History</Text>
+              <Text style={{ color: theme.colors.muted, fontSize: 12 }}>{filteredHistory.length} record(s)</Text>
+            </View>
+            <Input
+              placeholder="Search by member, status or reference"
+              value={historyQuery}
+              onChangeText={setHistoryQuery}
+              style={{ marginTop: 10 }}
+            />
+            <View style={{ marginTop: 10, flexDirection: 'row', gap: 8 }}>
+              {(['ALL', 'CONTRIBUTION', 'PAYOUT'] as const).map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  onPress={() => setHistoryTypeFilter(item)}
+                  style={{
+                    height: 34,
+                    paddingHorizontal: 12,
+                    borderRadius: 17,
+                    borderWidth: 1,
+                    borderColor: historyTypeFilter === item ? theme.colors.primary : theme.colors.border,
+                    backgroundColor: historyTypeFilter === item ? '#2A3037' : 'transparent',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                  <Text style={{ color: historyTypeFilter === item ? theme.colors.text : theme.colors.muted, fontSize: 12, fontWeight: '800' }}>{item}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={{ marginTop: 8, flexDirection: 'row', gap: 8 }}>
+              {(['ALL', 'SUCCESSFUL', 'PENDING', 'FAILED'] as const).map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  onPress={() => setHistoryStatusFilter(item)}
+                  style={{
+                    height: 30,
+                    paddingHorizontal: 10,
+                    borderRadius: 15,
+                    borderWidth: 1,
+                    borderColor: historyStatusFilter === item ? theme.colors.primary : theme.colors.border,
+                    backgroundColor: historyStatusFilter === item ? '#2A3037' : 'transparent',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                  <Text style={{ color: historyStatusFilter === item ? theme.colors.text : theme.colors.muted, fontSize: 11, fontWeight: '800' }}>{item}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
             <View style={{ marginTop: 12, borderRadius: 20, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 16 }}>
-            {history.length ? history.map((entry: any) => (
+            {visibleHistory.length ? visibleHistory.map((entry: any) => (
               <View key={entry.id || entry.created_at} style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.colors.border, flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={{ fontSize: 18, color: entry.activity_type === 'PAYOUT' ? '#f4a261' : theme.colors.primary }}>
                   {entry.activity_type === 'PAYOUT' ? '💸' : '💰'}
@@ -341,7 +419,14 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
                   ₦{((entry.amount_kobo ?? group.contribution_amount_kobo) / 100).toLocaleString()}
                 </Text>
               </View>
-            )) : <Text style={{ color: theme.colors.muted }}>No history entries yet.</Text>}
+            )) : <Text style={{ color: theme.colors.muted }}>No history entries for this filter yet.</Text>}
+            {visibleHistory.length < filteredHistory.length ? (
+              <TouchableOpacity
+                onPress={() => setHistoryVisibleCount((n) => n + 12)}
+                style={{ marginTop: 10, height: 44, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: theme.colors.text, fontWeight: '800' }}>Load more</Text>
+              </TouchableOpacity>
+            ) : null}
             </View>
           </View>
         ) : null}
