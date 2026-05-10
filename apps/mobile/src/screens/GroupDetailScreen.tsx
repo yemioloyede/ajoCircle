@@ -43,6 +43,7 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
         members: g.members || baseGroup.members || [],
         ledger: g.ledger || baseGroup.ledger || [],
         history: g.history || baseGroup.history || [],
+        schedule: g.schedule || baseGroup.schedule || null,
       });
       setAnalytics(a);
     } catch (e: any) {
@@ -70,11 +71,17 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
   const activeMembers = analytics?.activeMemberCount ?? members.length ?? 0;
   const potKobo = analytics?.totalContributionsKobo ?? group?.total_pot_kobo ?? 0;
   const initials = (group?.name || 'Ajo').split(' ').slice(0, 2).map((part: string) => part[0]).join('').toUpperCase();
+  const schedule = group?.schedule || {};
   const myMembership = useMemo(
     () => members.find((m: any) => m.user_id === user?.id),
     [members, user?.id],
   );
   const canManageMembers = myMembership?.role === 'GROUP_ADMIN';
+  const isFinished = !!schedule?.isFinished;
+  const projectedEndDate = schedule?.projectedEndDate
+    ? new Date(schedule.projectedEndDate)
+    : null;
+  const nextRecipientName = schedule?.nextRecipient?.fullName || 'Not available yet';
   const joinUrl = useMemo(() => {
     const webUrl = (Constants.expoConfig?.extra as any)?.appUrl || 'https://ajocircle.app/join';
     return `${webUrl}?code=${encodeURIComponent(group?.invite_code || '')}`;
@@ -160,6 +167,24 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
     }
   }
 
+  async function recreateCircle() {
+    if (!canManageMembers || !isFinished) return;
+    setErr('');
+    setMsg('');
+    try {
+      const j = await api(`/api/groups/${groupId}/recreate`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      setMsg(j.message || 'Circle recreated successfully');
+      if (j?.group?.id) {
+        navigation?.replace?.('GroupDetail', { groupId: j.group.id });
+      }
+    } catch (e: any) {
+      setErr(e.message || 'Could not recreate circle');
+    }
+  }
+
   if (loading) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}><ActivityIndicator color={theme.colors.primary} size="large" /></View>;
   if (!group) return <View style={{ flex: 1, padding: 18, backgroundColor: theme.colors.background }}><Text style={{ color: theme.colors.danger }}>{err || 'Group not found'}</Text></View>;
 
@@ -193,11 +218,24 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
           <View style={{ height: 14, borderRadius: 10, backgroundColor: '#343941', marginTop: 12, overflow: 'hidden' }}>
             <View style={{ width: `${Math.max(0, Math.min(100, completion))}%`, height: '100%', backgroundColor: theme.colors.primary }} />
           </View>
-          <Text style={{ marginTop: 10, color: theme.colors.muted, fontSize: 13 }}>Round {analytics?.contributionCount || 0} of {group.max_members || 5} • Next payout to: {members[0]?.full_name || 'Member'}.</Text>
+          <Text style={{ marginTop: 10, color: theme.colors.muted, fontSize: 13 }}>
+            Round {schedule?.completedRounds || 0} of {schedule?.totalRounds || activeMembers || group.max_members || 5} • Next payout to: {nextRecipientName}
+          </Text>
+          <Text style={{ marginTop: 6, color: theme.colors.muted, fontSize: 13 }}>
+            Circle end date: {projectedEndDate ? projectedEndDate.toLocaleDateString() : 'Not available'}
+          </Text>
 
-          <TouchableOpacity onPress={pay} style={{ height: 66, borderRadius: 18, marginTop: 16, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: theme.colors.white, fontSize: 15, fontWeight: '800' }}>💳  Contribute ₦{(group.contribution_amount_kobo / 100).toLocaleString()}</Text>
-          </TouchableOpacity>
+          {!isFinished ? (
+            <TouchableOpacity onPress={pay} style={{ height: 66, borderRadius: 18, marginTop: 16, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: theme.colors.white, fontSize: 15, fontWeight: '800' }}>💳  Contribute ₦{(group.contribution_amount_kobo / 100).toLocaleString()}</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {isFinished && canManageMembers ? (
+            <TouchableOpacity onPress={recreateCircle} style={{ height: 56, borderRadius: 18, marginTop: 16, borderWidth: 1, borderColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: theme.colors.primary, fontSize: 15, fontWeight: '800' }}>Start Next Circle</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         <View style={{ marginTop: 20, borderTopWidth: 1, borderTopColor: theme.colors.border, paddingHorizontal: 22, paddingTop: 14 }}>
@@ -230,7 +268,9 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
                         Position {member.payout_position || idx + 1} • {member.status || 'ACTIVE'}
                       </Text>
                     </View>
-                    <Text style={{ color: theme.colors.muted, fontSize: 12 }}>#{member.payout_position || idx + 1}</Text>
+                    <Text style={{ color: (schedule?.nextRecipient?.userId === member.user_id) ? theme.colors.primary : theme.colors.muted, fontSize: 12, fontWeight: (schedule?.nextRecipient?.userId === member.user_id) ? '800' : '400' }}>
+                      {(schedule?.nextRecipient?.userId === member.user_id) ? 'Next' : `#${member.payout_position || idx + 1}`}
+                    </Text>
                   </View>
                 ))
               ) : (

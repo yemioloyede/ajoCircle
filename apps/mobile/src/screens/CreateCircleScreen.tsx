@@ -27,6 +27,29 @@ export default function CreateCircleScreen({ navigation }: Props) {
     return amt * members;
   }, [amount, members]);
 
+  const estimate = useMemo(() => {
+    const rounds = Math.max(1, members);
+    const start = new Date();
+    start.setDate(start.getDate() + 1);
+
+    const end = new Date(start);
+    if (frequency === 'DAILY') {
+      end.setDate(end.getDate() + Math.max(rounds - 1, 0));
+    } else if (frequency === 'WEEKLY') {
+      end.setDate(end.getDate() + (7 * Math.max(rounds - 1, 0)));
+    } else {
+      end.setMonth(end.getMonth() + Math.max(rounds - 1, 0));
+    }
+
+    const durationLabel = frequency === 'DAILY'
+      ? `${rounds} day${rounds > 1 ? 's' : ''}`
+      : frequency === 'WEEKLY'
+        ? `${rounds} week${rounds > 1 ? 's' : ''}`
+        : `${rounds} month${rounds > 1 ? 's' : ''}`;
+
+    return { rounds, start, end, durationLabel };
+  }, [frequency, members]);
+
   async function submit() {
     if (!name.trim()) return Alert.alert('Circle name required');
     const contributionAmountKobo = Number(amount) * 100;
@@ -129,6 +152,18 @@ export default function CreateCircleScreen({ navigation }: Props) {
           <View style={{ marginTop: 18, borderTopWidth: 1, borderTopColor: theme.colors.border, paddingTop: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text style={{ color: theme.colors.muted, fontSize: 14 }}>Total Payout Pot</Text>
             <Text style={{ color: theme.colors.primary, fontSize: 16, fontWeight: '900' }}>N{total.toLocaleString()}.00</Text>
+          </View>
+
+          <View style={{ marginTop: 12, borderRadius: 12, borderWidth: 1, borderColor: '#243725', backgroundColor: '#101714', padding: 12 }}>
+            <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '800' }}>
+              Estimated circle duration: {estimate.durationLabel}
+            </Text>
+            <Text style={{ color: theme.colors.muted, fontSize: 12, marginTop: 4 }}>
+              Projected end date: {estimate.end.toLocaleDateString()}
+            </Text>
+            <Text style={{ color: theme.colors.mutedSoft, fontSize: 11, marginTop: 4 }}>
+              Based on one payout per cycle and {estimate.rounds} member slot{estimate.rounds > 1 ? 's' : ''}.
+            </Text>
           </View>
         </View>
 

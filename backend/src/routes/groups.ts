@@ -8,6 +8,20 @@ import { v4 as uuid } from 'uuid';
 const r = Router();
 r.use(requireAuth);
 
+function addCycles(base: Date, frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY', cycles: number) {
+  const out = new Date(base);
+  if (frequency === 'DAILY') {
+    out.setDate(out.getDate() + cycles);
+    return out;
+  }
+  if (frequency === 'WEEKLY') {
+    out.setDate(out.getDate() + (7 * cycles));
+    return out;
+  }
+  out.setMonth(out.getMonth() + cycles);
+  return out;
+}
+
 r.post('/', async (req, res) => {
   const s = z.object({
     name: z.string().min(2).max(100),
@@ -130,15 +144,126 @@ r.get('/:id', async (req, res) => {
   const id = req.params.id;
   const g = await query('select * from savings_groups where id=$1', [id]);
   if (!g.rowCount) return res.status(404).json({ error: 'Not found' });
-  const members = await query(
-    'select gm.*, u.full_name,u.email,u.phone from group_members gm join users u on u.id=gm.user_id where gm.group_id=$1 order by gm.payout_position',
-    [id]
+  const [members, ledger, paidPayouts] = await Promise.all([
+    query(
+      'select gm.*, u.full_name,u.email,u.phone from group_members gm join users u on u.id=gm.user_id where gm.group_id=$1 order by gm.payout_position',
+      [id]
+    ),
+    query(
+      'select * from ledger_entries where wallet_id=$1 order by created_at desc limit 50',
+      [g.rows[0].wallet_id]
+    ),
+    query(
+      "select recipient_user_id, created_at from payouts where group_id=$1 and status='PAID' order by created_at asc",
+      [id]
+    ),
+  ]);
+
+  const activeMembers = members.rows
+    .filter((m: any) => (m.status || 'ACTIVE') === 'ACTIVE')
+    .sort((a: any, b: any) => Number(a.payout_position || 0) - Number(b.payout_position || 0));
+
+  const paidRecipientIds = new Set<string>(
+    paidPayouts.rows.map((p: any) => String(p.recipient_user_id))
   );
-  const ledger = await query(
-    'select * from ledger_entries where wallet_id=$1 order by created_at desc limit 50',
-    [g.rows[0].wallet_id]
+  const completedRounds = Math.min(paidRecipientIds.size, activeMembers.length);
+  const totalRounds = activeMembers.length;
+  const remainingRounds = Math.max(totalRounds - completedRounds, 0);
+  const nextRecipient = activeMembers.find((m: any) => !paidRecipientIds.has(String(m.user_id))) || null;
+
+  const startDate = new Date(g.rows[0].start_date || g.rows[0].created_at);
+  const projectedEndDate = totalRounds > 0
+    ? addCycles(startDate, g.rows[0].frequency, Math.max(totalRounds - 1, 0))
+    : null;
+  const isFinished = (g.rows[0].status || 'ACTIVE') !== 'ACTIVE' || (totalRounds > 0 && completedRounds >= totalRounds);
+
+  res.json({
+    group: g.rows[0],
+    members: members.rows,
+    ledger: ledger.rows,
+    schedule: {
+      completedRounds,
+      totalRounds,
+      remainingRounds,
+      isFinished,
+      nextRecipient: nextRecipient
+        ? {
+          userId: nextRecipient.user_id,
+          fullName: nextRecipient.full_name,
+          payoutPosition: nextRecipient.payout_position,
+        }
+        : null,
+      projectedEndDate: projectedEndDate ? projectedEndDate.toISOString() : null,
+    },
+  });
+});
+
+r.post('/:id/recreate', async (req, res) => {
+  const id = req.params.id;
+  const s = z.object({
+    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  }).parse(req.body || {});
+
+  const oldGroup = await query('select * from savings_groups where id=$1', [id]);
+  if (!oldGroup.rowCount) return res.status(404).json({ error: 'Group not found' });
+
+  const admin = await query(
+    `select id from group_members
+     where group_id=$1 and user_id=$2 and role=$3 and status=$4`,
+    [id, req.user!.id, 'GROUP_ADMIN', 'ACTIVE']
   );
-  res.json({ group: g.rows[0], members: members.rows, ledger: ledger.rows });
+  if (!admin.rowCount) return res.status(403).json({ error: 'Only group admins can recreate a circle' });
+
+  const [activeMembers, paidPayouts] = await Promise.all([
+    query('select count(*) from group_members where group_id=$1 and status=$2', [id, 'ACTIVE']),
+    query("select count(distinct recipient_user_id) from payouts where group_id=$1 and status='PAID'", [id]),
+  ]);
+
+  const memberCount = Number(activeMembers.rows[0].count || 0);
+  const paidCount = Number(paidPayouts.rows[0].count || 0);
+  const isFinished = (oldGroup.rows[0].status || 'ACTIVE') !== 'ACTIVE' || (memberCount > 0 && paidCount >= memberCount);
+  if (!isFinished) return res.status(400).json({ error: 'Circle is still active and cannot be recreated yet' });
+
+  const startDate = s.startDate || (() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().slice(0, 10);
+  })();
+
+  const start = new Date(startDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (start <= today) return res.status(400).json({ error: 'startDate must be in the future' });
+
+  const invite = Math.random().toString(36).slice(2, 8).toUpperCase();
+  const out = await tx(async (c) => {
+    const g = await c.query(
+      'insert into savings_groups(name,frequency,contribution_amount_kobo,max_members,start_date,created_by,invite_code,status) values($1,$2,$3,$4,$5,$6,$7,$8) returning *',
+      [
+        oldGroup.rows[0].name,
+        oldGroup.rows[0].frequency,
+        oldGroup.rows[0].contribution_amount_kobo,
+        oldGroup.rows[0].max_members,
+        startDate,
+        req.user!.id,
+        invite,
+        'ACTIVE',
+      ]
+    );
+    const wallet = await c.query(
+      'insert into wallets(owner_type, owner_id, currency) values($1,$2,$3) returning *',
+      ['GROUP', g.rows[0].id, 'NGN']
+    );
+    await c.query('update savings_groups set wallet_id=$1 where id=$2', [wallet.rows[0].id, g.rows[0].id]);
+    await c.query(
+      'insert into group_members(group_id,user_id,role,payout_position,status) values($1,$2,$3,$4,$5)',
+      [g.rows[0].id, req.user!.id, 'GROUP_ADMIN', 1, 'ACTIVE']
+    );
+    return g.rows[0];
+  });
+
+  await audit(req.user!.id, 'GROUP_RECREATED', 'GROUP', out.id, { previousGroupId: id }, req);
+  res.json({ message: 'Circle recreated', group: out, previousGroupId: id });
 });
 
 r.get('/:id/analytics', async (req, res) => {
