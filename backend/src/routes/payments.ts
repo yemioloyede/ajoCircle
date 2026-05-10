@@ -109,7 +109,11 @@ r.post('/providers/health/test', async (req, res, next) => {
     }
 
     const selector = getPaymentProviderSelector();
-    await selector.recordTransactionResult(providerName, countryCode, success, amount, errorCode);
+    try {
+      await selector.recordTransactionResult(providerName, countryCode, success, amount, errorCode);
+    } catch (recordError) {
+      console.error('[payments] Failed to record provider health test event:', recordError);
+    }
 
     const health = await selector.getProviderHealth(providerName, countryCode);
     res.json({
