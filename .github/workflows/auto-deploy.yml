@@ -10,6 +10,16 @@ on:
       - 'backend/**'
       - '.github/workflows/auto-deploy.yml'
   workflow_dispatch:
+    inputs:
+      target:
+        description: 'Deployment target'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - admin
+          - backend
 
 jobs:
   check-hooks:
@@ -18,6 +28,8 @@ jobs:
     outputs:
       has_vercel: ${{ steps.check.outputs.has_vercel }}
       has_render: ${{ steps.check.outputs.has_render }}
+      vercel_url_ok: ${{ steps.check.outputs.vercel_url_ok }}
+      render_url_ok: ${{ steps.check.outputs.render_url_ok }}
     steps:
       - name: Check hook secret presence
         id: check
@@ -31,17 +43,41 @@ jobs:
             echo "has_vercel=false" >> "$GITHUB_OUTPUT"
           fi
 
+          if [[ "$VERCEL_DEPLOY_HOOK_URL" == https://* ]]; then
+            echo "vercel_url_ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "vercel_url_ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
           if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
             echo "has_render=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_render=false" >> "$GITHUB_OUTPUT"
           fi
 
+          if [[ "$RENDER_DEPLOY_HOOK_URL" == https://* ]]; then
+            echo "render_url_ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "render_url_ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy-diagnostics:
+    name: Deploy Diagnostics
+    runs-on: ubuntu-latest
+    needs: check-hooks
+    steps:
+      - name: Print hook readiness
+        run: |
+          echo "has_vercel=${{ needs.check-hooks.outputs.has_vercel }}"
+          echo "vercel_url_ok=${{ needs.check-hooks.outputs.vercel_url_ok }}"
+          echo "has_render=${{ needs.check-hooks.outputs.has_render }}"
+          echo "render_url_ok=${{ needs.check-hooks.outputs.render_url_ok }}"
+
   deploy-admin:
     name: Deploy Admin (Vercel)
     runs-on: ubuntu-latest
-    needs: check-hooks
-    if: ${{ needs.check-hooks.outputs.has_vercel == 'true' }}
+    needs: [check-hooks, deploy-diagnostics]
+    if: ${{ needs.check-hooks.outputs.has_vercel == 'true' && needs.check-hooks.outputs.vercel_url_ok == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'admin') }}
     steps:
       - name: Trigger Vercel deploy hook
         env:
@@ -52,8 +88,8 @@ jobs:
   deploy-backend:
     name: Deploy Backend (Render)
     runs-on: ubuntu-latest
-    needs: check-hooks
-    if: ${{ needs.check-hooks.outputs.has_render == 'true' }}
+    needs: [check-hooks, deploy-diagnostics]
+    if: ${{ needs.check-hooks.outputs.has_render == 'true' && needs.check-hooks.outputs.render_url_ok == 'true' && (github.event_name != 'workflow_dispatch' || inputs.target == 'all' || inputs.target == 'backend') }}
     steps:
       - name: Trigger Render deploy hook
         env:
@@ -64,10 +100,11 @@ jobs:
   notify-missing-secrets:
     name: Missing Hook Secrets
     runs-on: ubuntu-latest
-    needs: check-hooks
-    if: ${{ needs.check-hooks.outputs.has_vercel != 'true' || needs.check-hooks.outputs.has_render != 'true' }}
+    needs: [check-hooks, deploy-diagnostics]
+    if: ${{ needs.check-hooks.outputs.has_vercel != 'true' || needs.check-hooks.outputs.has_render != 'true' || needs.check-hooks.outputs.vercel_url_ok != 'true' || needs.check-hooks.outputs.render_url_ok != 'true' }}
     steps:
       - name: Print setup reminder
         run: |
-          echo "One or more deploy hook secrets are missing."
-          echo "Set VERCEL_DEPLOY_HOOK_URL and RENDER_DEPLOY_HOOK_URL in repository secrets."
+          echo "One or more deploy hook secrets are missing or invalid."
+          echo "Set valid https:// URLs for VERCEL_DEPLOY_HOOK_URL and RENDER_DEPLOY_HOOK_URL in repository secrets."
+          exit 1
