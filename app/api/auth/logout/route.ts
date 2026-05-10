@@ -1,0 +1,1 @@
+export { POST } from '../../../../apps/admin/app/api/auth/logout/route';

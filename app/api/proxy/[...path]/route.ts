@@ -1,0 +1,1 @@
+export { GET, POST, PATCH, DELETE } from '../../../../apps/admin/app/api/proxy/[...path]/route';
