@@ -78,6 +78,9 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
   );
   const canManageMembers = myMembership?.role === 'GROUP_ADMIN';
   const isFinished = !!schedule?.isFinished;
+  const configuredSlots = Number(schedule?.totalRounds ?? group?.max_members ?? 0);
+  const filledSlots = members.filter((m: any) => (m.status || 'ACTIVE') === 'ACTIVE').length;
+  const completedPayoutSlots = Number(schedule?.completedRounds ?? 0);
   const projectedEndDate = schedule?.projectedEndDate
     ? new Date(schedule.projectedEndDate)
     : null;
@@ -220,7 +223,10 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
             <View style={{ width: `${Math.max(0, Math.min(100, completion))}%`, height: '100%', backgroundColor: theme.colors.primary }} />
           </View>
           <Text style={{ marginTop: 10, color: theme.colors.muted, fontSize: 13 }}>
-            Round {schedule?.completedRounds || 0} of {schedule?.totalRounds || activeMembers || group.max_members || 5} • Next payout to: {nextRecipientName}
+            Payout progress: {completedPayoutSlots} of {configuredSlots || group.max_members || 0} slots paid • Next payout to: {nextRecipientName}
+          </Text>
+          <Text style={{ marginTop: 6, color: theme.colors.muted, fontSize: 13 }}>
+            Members in circle: {filledSlots} of {configuredSlots || group.max_members || 0} slots filled
           </Text>
           <Text style={{ marginTop: 6, color: theme.colors.muted, fontSize: 13 }}>
             Circle end date: {projectedEndDate ? projectedEndDate.toLocaleDateString() : 'Not available'}
