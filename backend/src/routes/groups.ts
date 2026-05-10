@@ -163,13 +163,18 @@ r.get('/:id', async (req, res) => {
     .filter((m: any) => (m.status || 'ACTIVE') === 'ACTIVE')
     .sort((a: any, b: any) => Number(a.payout_position || 0) - Number(b.payout_position || 0));
 
+  const slotCount = Number(g.rows[0].max_members || 0);
   const paidRecipientIds = new Set<string>(
     paidPayouts.rows.map((p: any) => String(p.recipient_user_id))
   );
-  const completedRounds = Math.min(paidRecipientIds.size, activeMembers.length);
-  const totalRounds = activeMembers.length;
+  const completedRounds = Math.min(paidRecipientIds.size, slotCount);
+  const totalRounds = slotCount;
   const remainingRounds = Math.max(totalRounds - completedRounds, 0);
-  const nextRecipient = activeMembers.find((m: any) => !paidRecipientIds.has(String(m.user_id))) || null;
+  const nextPayoutPosition = completedRounds < totalRounds ? completedRounds + 1 : null;
+  const nextRecipient = nextPayoutPosition
+    ? activeMembers.find((m: any) => Number(m.payout_position) === nextPayoutPosition) || null
+    : null;
+  const isNextSlotOpen = !!nextPayoutPosition && !nextRecipient;
 
   const startDate = new Date(g.rows[0].start_date || g.rows[0].created_at);
   const projectedEndDate = totalRounds > 0
@@ -193,6 +198,8 @@ r.get('/:id', async (req, res) => {
           payoutPosition: nextRecipient.payout_position,
         }
         : null,
+      nextPayoutPosition,
+      isNextSlotOpen,
       projectedEndDate: projectedEndDate ? projectedEndDate.toISOString() : null,
     },
   });
@@ -214,14 +221,14 @@ r.post('/:id/recreate', async (req, res) => {
   );
   if (!admin.rowCount) return res.status(403).json({ error: 'Only group admins can recreate a circle' });
 
-  const [activeMembers, paidPayouts] = await Promise.all([
+  const [, paidPayouts] = await Promise.all([
     query('select count(*) from group_members where group_id=$1 and status=$2', [id, 'ACTIVE']),
     query("select count(distinct recipient_user_id) from payouts where group_id=$1 and status='PAID'", [id]),
   ]);
 
-  const memberCount = Number(activeMembers.rows[0].count || 0);
+  const slotCount = Number(oldGroup.rows[0].max_members || 0);
   const paidCount = Number(paidPayouts.rows[0].count || 0);
-  const isFinished = (oldGroup.rows[0].status || 'ACTIVE') !== 'ACTIVE' || (memberCount > 0 && paidCount >= memberCount);
+  const isFinished = (oldGroup.rows[0].status || 'ACTIVE') !== 'ACTIVE' || (slotCount > 0 && paidCount >= slotCount);
   if (!isFinished) return res.status(400).json({ error: 'Circle is still active and cannot be recreated yet' });
 
   const startDate = s.startDate || (() => {

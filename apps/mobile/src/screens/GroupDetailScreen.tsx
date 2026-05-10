@@ -81,7 +81,8 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
   const projectedEndDate = schedule?.projectedEndDate
     ? new Date(schedule.projectedEndDate)
     : null;
-  const nextRecipientName = schedule?.nextRecipient?.fullName || 'Not available yet';
+  const nextRecipientName = schedule?.nextRecipient?.fullName
+    || (schedule?.isNextSlotOpen && schedule?.nextPayoutPosition ? `Open slot #${schedule.nextPayoutPosition}` : 'Not available yet');
   const joinUrl = useMemo(() => {
     const webUrl = (Constants.expoConfig?.extra as any)?.appUrl || 'https://ajocircle.app/join';
     return `${webUrl}?code=${encodeURIComponent(group?.invite_code || '')}`;
@@ -276,6 +277,20 @@ export default function GroupDetailScreen({ route, navigation }: Props) {
               ) : (
                 <Text style={{ color: theme.colors.muted, fontSize: 13 }}>No rotation records yet.</Text>
               )}
+              {schedule?.isNextSlotOpen && schedule?.nextPayoutPosition ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18 }}>
+                  <View style={{ width: 56, height: 56, borderRadius: 30, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ color: theme.colors.muted, fontSize: 13 }}>--</Text>
+                  </View>
+                  <View style={{ marginLeft: 14, flex: 1 }}>
+                    <Text style={{ color: theme.colors.text, fontSize: 15, fontWeight: '800' }}>Open Slot</Text>
+                    <Text style={{ color: theme.colors.muted, fontSize: 13 }}>
+                      Position {schedule.nextPayoutPosition} • waiting for member
+                    </Text>
+                  </View>
+                  <Text style={{ color: theme.colors.primary, fontSize: 12, fontWeight: '800' }}>Next</Text>
+                </View>
+              ) : null}
             </View>
           </View>
         ) : null}
