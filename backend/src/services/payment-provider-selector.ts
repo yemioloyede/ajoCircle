@@ -241,11 +241,29 @@ export class PaymentProviderSelector {
       })
     );
 
-    // Also log to database for long-term analytics
-    await this.db.query(
-      'INSERT INTO audit_logs (action, resource_type, description, status) VALUES ($1, $2, $3, $4)',
-      ['PAYMENT_PROVIDER_TRANSACTION', providerName, `Amount: ${amount}, Error: ${errorCode || 'none'}`, success ? 'SUCCESS' : 'FAILURE']
-    );
+    // Also log to database for long-term analytics.
+    // Keep this non-blocking so health recording still works if audit insert fails.
+    try {
+      await this.db.query(
+        'INSERT INTO audit_logs (actor_id, action, entity_type, entity_id, metadata) VALUES ($1, $2, $3, $4, $5)',
+        [
+          null,
+          'PAYMENT_PROVIDER_TRANSACTION',
+          'PAYMENT_PROVIDER',
+          null,
+          {
+            providerName,
+            countryCode,
+            success,
+            amount,
+            errorCode: errorCode || null,
+            details: `Provider ${providerName} in ${countryCode}: ${success ? 'SUCCESS' : 'FAILURE'}`,
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('[PaymentProviderSelector] Failed to write provider audit log:', error);
+    }
   }
 
   /**
