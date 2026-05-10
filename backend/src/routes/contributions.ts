@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { z } from 'zod';
-import { query } from '../config/db';
-import { initializePayment } from '../services/paystack';
+import { query, tx } from '../config/db';
+import { initializePayment, verifyTransaction } from '../services/paystack';
+import { createLedgerEntry } from '../services/ledger';
+import { audit, createNotification } from '../services/audit';
+import { env } from '../config/env';
 import { v4 as uuid } from 'uuid';
-import { audit } from '../services/audit';
 
 const r = Router();
 r.use(requireAuth);
@@ -65,6 +67,91 @@ r.get('/mine', async (req, res) => {
     );
   }
   res.json({ contributions: rows.rows, nextCursor: rows.rows[rows.rows.length - 1]?.created_at ?? null });
+});
+
+// Manually verify a payment with Paystack — used by mobile after returning from the payment URL
+r.post('/verify', async (req, res) => {
+  const { reference } = z.object({ reference: z.string().min(1) }).parse(req.body);
+
+  // Only allow the owner to verify their own contribution
+  const existing = await query(
+    `select c.*, g.wallet_id from contributions c
+     join savings_groups g on g.id=c.group_id
+     where c.payment_reference=$1 and c.user_id=$2`,
+    [reference, req.user!.id]
+  );
+  if (!existing.rowCount) return res.status(404).json({ error: 'Contribution not found' });
+  const row = existing.rows[0];
+
+  if (row.status === 'SUCCESS') {
+    return res.json({ success: true, status: 'SUCCESS', message: 'Already confirmed' });
+  }
+
+  // Ask Paystack directly
+  let paystackData: any;
+  try {
+    paystackData = await verifyTransaction(reference);
+  } catch (e: any) {
+    return res.status(502).json({ error: 'Could not reach Paystack: ' + e.message });
+  }
+
+  if (paystackData.status !== 'success') {
+    return res.status(402).json({ success: false, status: paystackData.status, message: 'Payment not yet successful on Paystack' });
+  }
+
+  // Run the same ledger logic as the webhook handler
+  await tx(async (c) => {
+    const contrib = await c.query(
+      `select c.*, g.wallet_id from contributions c
+       join savings_groups g on g.id=c.group_id
+       where c.payment_reference=$1 for update`,
+      [reference]
+    );
+    if (!contrib.rowCount) return;
+    const r = contrib.rows[0];
+    if (r.status === 'SUCCESS') return; // idempotency
+
+    await c.query(
+      "update contributions set status='SUCCESS', paid_at=now(), provider_payload=$1 where id=$2",
+      [JSON.stringify(paystackData), r.id]
+    );
+
+    const feeBps = env.platformFeeBps;
+    const feeKobo = Math.floor((r.amount_kobo * feeBps) / 10000);
+    const netKobo = r.amount_kobo - feeKobo;
+
+    await createLedgerEntry(c, {
+      walletId: r.wallet_id,
+      type: 'CONTRIBUTION',
+      direction: 'CREDIT',
+      amountKobo: netKobo,
+      reference,
+      meta: { contributionId: r.id, userId: r.user_id, grossKobo: r.amount_kobo, feeKobo },
+    });
+
+    if (feeKobo > 0) {
+      await createLedgerEntry(c, {
+        walletId: r.wallet_id,
+        type: 'PLATFORM_FEE',
+        direction: 'DEBIT',
+        amountKobo: feeKobo,
+        reference: reference + '_FEE',
+        meta: { contributionId: r.id, feeBps },
+      });
+    }
+  });
+
+  try {
+    await createNotification(
+      req.user!.id,
+      'CONTRIBUTION_SUCCESS',
+      'Contribution Confirmed',
+      `₦${(row.amount_kobo / 100).toLocaleString()} has been credited to your group.`
+    );
+  } catch { /* non-critical */ }
+
+  await audit(req.user!.id, 'CONTRIBUTION_VERIFIED', 'CONTRIBUTION', row.id, { reference }, req);
+  res.json({ success: true, status: 'SUCCESS', message: 'Payment confirmed and ledger updated' });
 });
 
 export default r;
