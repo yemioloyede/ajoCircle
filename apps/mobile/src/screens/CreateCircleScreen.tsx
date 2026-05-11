@@ -9,9 +9,9 @@ interface Props {
 }
 
 const frequencies = [
-  { label: 'D', value: 'DAILY' },
-  { label: 'W', value: 'WEEKLY' },
-  { label: 'M', value: 'MONTHLY' },
+  { label: '📅 Daily', value: 'DAILY' },
+  { label: '📅 Weekly', value: 'WEEKLY' },
+  { label: '📅 Monthly', value: 'MONTHLY' },
 ];
 
 export default function CreateCircleScreen({ navigation }: Props) {
@@ -149,8 +149,7 @@ export default function CreateCircleScreen({ navigation }: Props) {
       </View>
 
       <View style={{ paddingHorizontal: 22, paddingTop: 16 }}>
-        <Text style={{ color: theme.colors.primary, fontSize: 16, fontWeight: '800' }}>Step 1 of 3</Text>
-        <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '900', marginTop: 4 }}>General Information</Text>
+        <Text style={{ color: theme.colors.text, fontSize: 20, fontWeight: '900', marginTop: 4 }}>Name your Circle</Text>
 
         <Label label="Circle Name" />
         <Field value={name} onChangeText={setName} placeholder="e.g., December Payout Group" />
@@ -158,36 +157,35 @@ export default function CreateCircleScreen({ navigation }: Props) {
         <Label label="Description (Optional)" />
         <Field value={description} onChangeText={setDescription} placeholder="What is this group saving for?" height={70} />
 
-        <Text style={{ color: theme.colors.primary, fontSize: 16, fontWeight: '800', marginTop: 22 }}>Step 2 of 3</Text>
-        <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '900', marginTop: 4 }}>Contribution Rules</Text>
+        <Text style={{ color: theme.colors.text, fontSize: 20, fontWeight: '900', marginTop: 22 }}>Set Contribution Amount</Text>
 
         <Label label="Contribution Amount" />
         <Field value={amount} onChangeText={setAmount} placeholder="0.00" keyboardType="numeric" />
         <Text style={{ color: theme.colors.muted, fontSize: 14, marginTop: 8 }}>Amount each member pays per cycle</Text>
 
-        <Label label="Contribution Frequency" />
-        <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+        <Label label="How often does everyone pay?" />
+        <View style={{ gap: 10, marginTop: 10 }}>
           {frequencies.map(item => (
             <TouchableOpacity
               key={item.value}
               onPress={() => setFrequency(item.value as any)}
               style={{
-                width: 42,
-                height: 42,
-                borderRadius: 21,
-                borderWidth: 1,
+                height: 56,
+                borderRadius: 16,
+                borderWidth: 2,
                 borderColor: frequency === item.value ? theme.colors.primary : theme.colors.border,
-                backgroundColor: frequency === item.value ? '#2A3037' : theme.colors.surface,
+                backgroundColor: frequency === item.value ? '#1C2B1E' : theme.colors.surface,
                 alignItems: 'center',
                 justifyContent: 'center',
+                flexDirection: 'row',
               }}>
-              <Text style={{ color: frequency === item.value ? theme.colors.text : theme.colors.muted, fontWeight: '900' }}>{item.label}</Text>
+              <Text style={{ color: frequency === item.value ? theme.colors.primary : theme.colors.muted, fontWeight: '800', fontSize: 15 }}>{item.label}</Text>
+              {frequency === item.value && <Text style={{ color: theme.colors.primary, marginLeft: 8, fontSize: 15 }}>✓</Text>}
             </TouchableOpacity>
           ))}
         </View>
 
-        <Text style={{ color: theme.colors.primary, fontSize: 16, fontWeight: '800', marginTop: 24 }}>Step 3 of 3</Text>
-        <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '900', marginTop: 4 }}>Member Slots</Text>
+        <Text style={{ color: theme.colors.text, fontSize: 20, fontWeight: '900', marginTop: 24 }}>How many people join?</Text>
 
         <View style={{ marginTop: 16, borderRadius: 20, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 16 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -205,9 +203,9 @@ export default function CreateCircleScreen({ navigation }: Props) {
             <View style={{ width: `${Math.round((members / 20) * 100)}%`, height: '100%', backgroundColor: theme.colors.primary, borderRadius: 4 }} />
             <View style={{ position: 'absolute', left: `${Math.round((members / 20) * 100)}%`, marginLeft: -10, top: -7, width: 20, height: 20, borderRadius: 10, backgroundColor: theme.colors.primary }} />
           </View>
-          <View style={{ marginTop: 14, flexDirection: 'row', justifyContent: 'center', gap: 10 }}>
-            <TouchableOpacity onPress={() => setMembers(prev => Math.max(3, prev - 1))} style={slotButtonStyle.button}><Text style={slotButtonStyle.text}>-</Text></TouchableOpacity>
-            <TouchableOpacity onPress={() => setMembers(prev => Math.min(20, prev + 1))} style={slotButtonStyle.button}><Text style={slotButtonStyle.text}>+</Text></TouchableOpacity>
+          <View style={{ marginTop: 14, flexDirection: 'row', justifyContent: 'center', gap: 16 }}>
+            <TouchableOpacity onPress={() => setMembers(prev => Math.max(3, prev - 1))} style={[slotButtonStyle.button, { width: 56, height: 56, borderRadius: 28 }]}><Text style={[slotButtonStyle.text, { fontSize: 22 }]}>−</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => setMembers(prev => Math.min(20, prev + 1))} style={[slotButtonStyle.button, { width: 56, height: 56, borderRadius: 28 }]}><Text style={[slotButtonStyle.text, { fontSize: 22 }]}>+</Text></TouchableOpacity>
           </View>
 
           <View style={{ marginTop: 18, borderTopWidth: 1, borderTopColor: theme.colors.border, paddingTop: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -263,7 +261,7 @@ export default function CreateCircleScreen({ navigation }: Props) {
 }
 
 function Label({ label }: { label: string }) {
-  return <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '700', marginTop: 16 }}>{label}</Text>;
+  return <Text style={{ color: theme.colors.text, fontSize: 15, fontWeight: '700', marginTop: 18 }}>{label}</Text>;
 }
 
 function ReviewRow({ label, value }: { label: string; value: string }) {
@@ -280,7 +278,7 @@ function Field(props: any) {
     <TextInput
       {...props}
       placeholderTextColor={theme.colors.mutedSoft}
-      style={{ marginTop: 8, height: props.height || 52, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 12, color: theme.colors.text, fontSize: 13, paddingHorizontal: 14 }}
+      style={{ marginTop: 8, height: props.height || 56, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, color: theme.colors.text, fontSize: 15, paddingHorizontal: 16 }}
     />
   );
 }

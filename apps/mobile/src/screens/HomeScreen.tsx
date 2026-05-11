@@ -256,13 +256,13 @@ export default function HomeScreen({ navigation }: Props) {
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.colors.primary} />}>
-        <View style={{ marginTop: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <View style={{ marginTop: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
-            <Text style={{ color: theme.colors.muted, fontSize: 13 }}>Good morning,</Text>
-            <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '900', lineHeight: 24, marginTop: 4 }}>{user?.full_name || 'Ajo User'}</Text>
+            <Text style={{ color: theme.colors.muted, fontSize: 14 }}>Good morning,</Text>
+            <Text style={{ color: theme.colors.text, fontSize: 22, fontWeight: '900', lineHeight: 28, marginTop: 4 }}>{user?.full_name || 'Ajo User'}</Text>
           </View>
-          <View style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center', marginTop: 6 }}>
-            <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '800' }}>{userInitials}</Text>
+          <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: theme.colors.white, fontSize: 18, fontWeight: '900' }}>{userInitials}</Text>
           </View>
         </View>
 
@@ -289,9 +289,9 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
 
         <View style={{ marginTop: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '900' }}>Upcoming Deadlines</Text>
+          <Text style={{ color: theme.colors.text, fontSize: 20, fontWeight: '900' }}>Upcoming Payments</Text>
           <TouchableOpacity onPress={() => topUpcoming ? navigation?.navigate('GroupDetail', { groupId: topUpcoming.group.id }) : navigation?.navigate('CreateCircle')}>
-            <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '800' }}>View All</Text>
+            <Text style={{ color: theme.colors.primary, fontSize: 14, fontWeight: '800' }}>View All</Text>
           </TouchableOpacity>
         </View>
 
@@ -316,22 +316,23 @@ export default function HomeScreen({ navigation }: Props) {
             </View>
           </View>
         ) : groups.length ? (
-          <View style={{ marginTop: 14, borderRadius: 24, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 16 }}>
-            <Text style={{ color: theme.colors.text, fontSize: 15, fontWeight: '900' }}>No upcoming payment right now</Text>
-            <Text style={{ marginTop: 6, color: theme.colors.muted, fontSize: 13 }}>
-              You have paid all active circles for this period.
+          <View style={{ marginTop: 14, borderRadius: 24, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 18 }}>
+            <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '900' }}>All paid up! ✅</Text>
+            <Text style={{ marginTop: 6, color: theme.colors.muted, fontSize: 15 }}>
+              You've paid all your circles for this period.
             </Text>
           </View>
         ) : (
-          <View style={{ marginTop: 14, borderRadius: 24, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 16 }}>
-            <Text style={{ color: theme.colors.muted, fontSize: 13 }}>Create your first circle to see upcoming deadlines.</Text>
+          <View style={{ marginTop: 14, borderRadius: 24, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 18 }}>
+            <Text style={{ color: theme.colors.muted, fontSize: 15 }}>Create your first circle to get started.</Text>
           </View>
         )}
 
-        <Text style={{ marginTop: 28, color: theme.colors.text, fontSize: 18, fontWeight: '900', textAlign: 'center' }}>Your Active Circles</Text>
+        <Text style={{ marginTop: 28, color: theme.colors.text, fontSize: 20, fontWeight: '900' }}>Your Circles</Text>
         {groups.length === 0 ? (
-          <View style={{ marginTop: 14, borderRadius: 22, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 18 }}>
-            <Text style={{ color: theme.colors.muted, fontSize: 13 }}>No circles yet. Start one below or join via code.</Text>
+          <View style={{ marginTop: 14, borderRadius: 22, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 20 }}>
+            <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '800' }}>No circles yet</Text>
+            <Text style={{ color: theme.colors.muted, fontSize: 15, marginTop: 6 }}>Tap the + button below to create one, or join with an invite code.</Text>
           </View>
         ) : groups.map(group => (
           <View key={group.id} style={{ marginTop: 14, borderRadius: 22, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 16 }}>
@@ -340,32 +341,32 @@ export default function HomeScreen({ navigation }: Props) {
                 <Text style={{ color: theme.colors.primary, fontSize: 16 }}>👥</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: theme.colors.text, fontSize: 15, fontWeight: '900' }}>{group.name}</Text>
-                <Text style={{ marginTop: 6, color: theme.colors.muted, fontSize: 13 }}>Next payout: --</Text>
+                <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '900' }}>{group.name}</Text>
+                <Text style={{ marginTop: 6, color: theme.colors.muted, fontSize: 14 }}>Next payout: --</Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '800' }}>₦{(group.contribution_amount_kobo / 100).toLocaleString()}/{group.frequency === 'WEEKLY' ? 'wk' : 'mo'}</Text>
+                <Text style={{ color: theme.colors.text, fontSize: 14, fontWeight: '800' }}>₦{(group.contribution_amount_kobo / 100).toLocaleString()}/{group.frequency === 'WEEKLY' ? 'wk' : group.frequency === 'DAILY' ? 'day' : 'mo'}</Text>
                 <View style={{ marginTop: 8, height: 34, paddingHorizontal: 12, borderRadius: 18, backgroundColor: '#182018', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ color: theme.colors.primary, fontSize: 12, fontWeight: '800' }}>{group.status || 'Active'}</Text>
+                  <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '800' }}>{group.status || 'Active'}</Text>
                 </View>
               </View>
             </View>
             <View style={{ marginTop: 12, flexDirection: 'row', gap: 10 }}>
-              <TouchableOpacity onPress={() => pay(group.id)} style={{ flex: 1, height: 46, borderRadius: 12, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: theme.colors.white, fontWeight: '800', fontSize: 13 }}>Contribute</Text>
+              <TouchableOpacity onPress={() => pay(group.id)} style={{ flex: 1, height: 52, borderRadius: 14, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: theme.colors.white, fontWeight: '800', fontSize: 15 }}>💳 Contribute</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => navigation?.navigate('GroupDetail', { groupId: group.id })} style={{ flex: 1, height: 46, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 13 }}>Details</Text>
+              <TouchableOpacity onPress={() => navigation?.navigate('GroupDetail', { groupId: group.id })} style={{ flex: 1, height: 52, borderRadius: 14, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 15 }}>View Details</Text>
               </TouchableOpacity>
             </View>
           </View>
         ))}
 
-        <View style={{ marginTop: 18, borderRadius: 20, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 16 }}>
-          <Text style={{ fontSize: 15, fontWeight: '900', color: theme.colors.text }}>Join Circle</Text>
-          <Text style={{ marginTop: 4, color: theme.colors.muted, fontSize: 13 }}>Enter an invite code to join a savings group.</Text>
+        <View style={{ marginTop: 18, borderRadius: 20, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 18 }}>
+          <Text style={{ fontSize: 17, fontWeight: '900', color: theme.colors.text }}>Join a Circle</Text>
+          <Text style={{ marginTop: 6, color: theme.colors.muted, fontSize: 15 }}>Got an invite code? Paste it here to join.</Text>
           <Input placeholder="Invite code" value={invite} onChangeText={setInvite} autoCapitalize="none" style={{ marginTop: theme.spacing.sm }} />
-          {joining ? <ActivityIndicator color={theme.colors.primary} /> : <Button title="Join Group" onPress={join} />}
+          {joining ? <ActivityIndicator color={theme.colors.primary} /> : <Button title="Join Circle" onPress={join} />}
         </View>
 
       </ScrollView>
@@ -392,9 +393,9 @@ export default function HomeScreen({ navigation }: Props) {
 
 function MiniMetric({ title, value }: { title: string; value: string }) {
   return (
-    <View style={{ flex: 1, borderRadius: 22, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, padding: 18, minHeight: 126 }}>
-      <Text style={{ color: theme.colors.muted, fontSize: 13, fontWeight: '700' }}>{title}</Text>
-      <Text style={{ color: theme.colors.text, marginTop: 8, fontSize: 18, fontWeight: '900', lineHeight: 22 }}>{value}</Text>
+    <View style={{ flex: 1, borderRadius: 22, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, padding: 18, minHeight: 120 }}>
+      <Text style={{ color: theme.colors.muted, fontSize: 14, fontWeight: '700' }}>{title}</Text>
+      <Text style={{ color: theme.colors.text, marginTop: 8, fontSize: 22, fontWeight: '900', lineHeight: 26 }}>{value}</Text>
     </View>
   );
 }

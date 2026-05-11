@@ -174,12 +174,12 @@ const styles = StyleSheet.create({
 		paddingHorizontal: theme.spacing.md,
 		marginVertical: theme.spacing.xs,
 	},
-	buttonTextBase: { fontWeight: '800', fontSize: 15 },
+	buttonTextBase: { fontWeight: '800', fontSize: 16 },
 	buttonDisabled: { opacity: 0.55 },
 	buttonTextDisabled: { opacity: 0.9 },
-	label: { color: theme.colors.text, fontSize: 13, fontWeight: '700', marginBottom: theme.spacing.xs },
+	label: { color: theme.colors.text, fontSize: 15, fontWeight: '700', marginBottom: theme.spacing.xs },
 	inputShell: {
-		minHeight: 52,
+		minHeight: 58,
 		borderRadius: theme.radii.md,
 		borderWidth: 1,
 		borderColor: theme.colors.border,
@@ -190,9 +190,10 @@ const styles = StyleSheet.create({
 	},
 	input: {
 		flex: 1,
-		minHeight: 52,
+		minHeight: 58,
 		paddingHorizontal: theme.spacing.md,
 		color: theme.colors.text,
+		fontSize: 15,
 	},
 	multiline: {
 		minHeight: 92,
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
 		paddingTop: theme.spacing.md,
 	},
 	inputAddon: { paddingHorizontal: theme.spacing.md },
-	helper: { marginTop: 6, color: theme.colors.mutedSoft, fontSize: 12 },
+	helper: { marginTop: 6, color: theme.colors.mutedSoft, fontSize: 13 },
 	pill: {
 		alignSelf: 'flex-start',
 		paddingHorizontal: theme.spacing.sm,
@@ -208,7 +209,7 @@ const styles = StyleSheet.create({
 		borderRadius: theme.radii.pill,
 		borderWidth: 1,
 	},
-	pillText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
+	pillText: { fontSize: 12, fontWeight: '800', letterSpacing: 0.3 },
 	metricCard: {
 		flex: 1,
 		borderRadius: theme.radii.lg,
@@ -217,9 +218,9 @@ const styles = StyleSheet.create({
 		borderWidth: 1,
 		borderColor: theme.colors.border,
 	},
-	metricLabel: { fontSize: 12, color: theme.colors.muted, fontWeight: '700' },
-	metricValue: { marginTop: 8, fontSize: 24, fontWeight: '900', color: theme.colors.text },
-	metricHelper: { marginTop: 4, fontSize: 12, color: theme.colors.muted },
+	metricLabel: { fontSize: 13, color: theme.colors.muted, fontWeight: '700' },
+	metricValue: { marginTop: 8, fontSize: 26, fontWeight: '900', color: theme.colors.text },
+	metricHelper: { marginTop: 4, fontSize: 13, color: theme.colors.muted },
 	sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: theme.spacing.md, marginBottom: theme.spacing.xs },
 	sectionTitle: { fontSize: 18, fontWeight: '900', color: theme.colors.text },
 	sectionAction: { fontSize: 13, color: theme.colors.primary, fontWeight: '800' },
@@ -230,8 +231,8 @@ const styles = StyleSheet.create({
 	bannerTitle: { fontWeight: '900', fontSize: 14, marginBottom: 4 },
 	bannerMessage: { fontSize: 13, lineHeight: 19, color: theme.colors.muted },
 	statLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: theme.spacing.sm },
-	statLabel: { fontSize: 13, color: theme.colors.muted, fontWeight: '600' },
-	statValue: { fontSize: 13, color: theme.colors.text, fontWeight: '800' },
+	statLabel: { fontSize: 14, color: theme.colors.muted, fontWeight: '600' },
+	statValue: { fontSize: 14, color: theme.colors.text, fontWeight: '800' },
 });
 
 const buttonStyles: Record<ButtonVariant, ViewStyle> = {

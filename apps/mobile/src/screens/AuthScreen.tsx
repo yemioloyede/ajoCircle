@@ -105,22 +105,14 @@ export default function AuthScreen({ onBackToIntro }: Props) {
       </View>
 
       {mode === 'register' ? (
-        <View style={{ backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 20, padding: 18, marginTop: 24 }}>
-          <StepRow active index={1} label="Account Setup" />
-          <StepRow index={2} label="Basic Profile" />
-          <StepRow index={3} label="Identity (KYC)" />
-        </View>
-      ) : null}
-
-      {mode === 'register' ? (
         <>
-          <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 15, marginTop: 24 }}>Phone Number</Text>
+          <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 16, marginTop: 24 }}>Phone Number</Text>
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
             <View style={{ width: 110, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, height: 64, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.surface }}>
               <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 13 }}>+234</Text>
             </View>
             <TextInput
-              style={{ flex: 1, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, height: 56, color: theme.colors.text, paddingHorizontal: 18, fontSize: 13 }}
+              style={{ flex: 1, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, height: 60, color: theme.colors.text, paddingHorizontal: 18, fontSize: 15 }}
               placeholder="803 000 0000"
               placeholderTextColor={theme.colors.mutedSoft}
               keyboardType="phone-pad"
@@ -129,9 +121,9 @@ export default function AuthScreen({ onBackToIntro }: Props) {
             />
           </View>
 
-          <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 15, marginTop: 24 }}>Full Legal Name</Text>
+          <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 16, marginTop: 24 }}>Full Name</Text>
           <TextInput
-            style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, height: 56, color: theme.colors.text, paddingHorizontal: 18, fontSize: 13, marginTop: 12 }}
+            style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, height: 60, color: theme.colors.text, paddingHorizontal: 18, fontSize: 15, marginTop: 12 }}
             placeholder="As it appears on your ID"
             placeholderTextColor={theme.colors.mutedSoft}
             autoCapitalize="words"
@@ -141,9 +133,9 @@ export default function AuthScreen({ onBackToIntro }: Props) {
         </>
       ) : null}
 
-      <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 15, marginTop: 24 }}>Email</Text>
+      <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 16, marginTop: 24 }}>Email Address</Text>
       <TextInput
-        style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, height: 56, color: theme.colors.text, paddingHorizontal: 18, fontSize: 13, marginTop: 12 }}
+        style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, height: 60, color: theme.colors.text, paddingHorizontal: 18, fontSize: 15, marginTop: 12 }}
         placeholder="you@example.com"
         placeholderTextColor={theme.colors.mutedSoft}
         autoCapitalize="none"
@@ -152,9 +144,9 @@ export default function AuthScreen({ onBackToIntro }: Props) {
         onChangeText={setEmail}
       />
 
-      <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 15, marginTop: 24 }}>Password</Text>
+      <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 16, marginTop: 24 }}>Password</Text>
       <TextInput
-        style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, height: 56, color: theme.colors.text, paddingHorizontal: 18, fontSize: 13, marginTop: 12 }}
+        style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, height: 60, color: theme.colors.text, paddingHorizontal: 18, fontSize: 15, marginTop: 12 }}
         placeholder="••••••••"
         placeholderTextColor={theme.colors.mutedSoft}
         secureTextEntry
@@ -171,33 +163,38 @@ export default function AuthScreen({ onBackToIntro }: Props) {
       ) : null}
 
       {showReset ? (
-        <View style={{ marginTop: 14, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, padding: 12, backgroundColor: theme.colors.surface }}>
-          <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '800' }}>Reset Password</Text>
-          <Text style={{ color: theme.colors.muted, fontSize: 12, marginTop: 6 }}>1) Request reset token with your email. 2) Paste token and set a new password.</Text>
-          <TouchableOpacity onPress={requestReset} style={{ marginTop: 10, height: 42, borderRadius: 10, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: theme.colors.text, fontWeight: '700', fontSize: 13 }}>Request Reset Token</Text>
+        <View style={{ marginTop: 14, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 14, padding: 16, backgroundColor: theme.colors.surface }}>
+          <Text style={{ color: theme.colors.text, fontSize: 15, fontWeight: '800' }}>Reset Your Password</Text>
+          <Text style={{ color: theme.colors.muted, fontSize: 14, marginTop: 6, lineHeight: 22 }}>Enter your email above, then tap the button below. We'll send you a recovery code.</Text>
+          <TouchableOpacity onPress={requestReset} style={{ marginTop: 12, height: 52, borderRadius: 12, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: theme.colors.white, fontWeight: '800', fontSize: 15 }}>Send Reset Code</Text>
           </TouchableOpacity>
 
-          <TextInput
-            style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10, height: 48, color: theme.colors.text, paddingHorizontal: 12, fontSize: 13, marginTop: 10 }}
-            placeholder="Reset token"
-            placeholderTextColor={theme.colors.mutedSoft}
-            autoCapitalize="none"
-            value={resetToken}
-            onChangeText={setResetToken}
-          />
-          <TextInput
-            style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10, height: 48, color: theme.colors.text, paddingHorizontal: 12, fontSize: 13, marginTop: 10 }}
-            placeholder="New password"
-            placeholderTextColor={theme.colors.mutedSoft}
-            secureTextEntry
-            value={newPassword}
-            onChangeText={setNewPassword}
-          />
-          <TouchableOpacity onPress={resetPassword} style={{ marginTop: 10, height: 42, borderRadius: 10, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: theme.colors.white, fontWeight: '800', fontSize: 13 }}>Reset Password</Text>
-          </TouchableOpacity>
-          {!!resetMsg && <Text style={{ color: theme.colors.primary, marginTop: 10, fontWeight: '700', fontSize: 12 }}>{resetMsg}</Text>}
+          {!!resetToken && (
+            <>
+              <Text style={{ color: theme.colors.text, fontSize: 14, fontWeight: '800', marginTop: 14 }}>Enter Reset Code</Text>
+              <TextInput
+                style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10, height: 52, color: theme.colors.text, paddingHorizontal: 14, fontSize: 15, marginTop: 8 }}
+                placeholder="Paste code from email"
+                placeholderTextColor={theme.colors.mutedSoft}
+                autoCapitalize="none"
+                value={resetToken}
+                onChangeText={setResetToken}
+              />
+              <TextInput
+                style={{ borderWidth: 1, borderColor: theme.colors.border, borderRadius: 10, height: 52, color: theme.colors.text, paddingHorizontal: 14, fontSize: 15, marginTop: 10 }}
+                placeholder="New password"
+                placeholderTextColor={theme.colors.mutedSoft}
+                secureTextEntry
+                value={newPassword}
+                onChangeText={setNewPassword}
+              />
+              <TouchableOpacity onPress={resetPassword} style={{ marginTop: 10, height: 52, borderRadius: 12, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: theme.colors.white, fontWeight: '800', fontSize: 15 }}>Set New Password</Text>
+              </TouchableOpacity>
+            </>
+          )}
+          {!!resetMsg && <Text style={{ color: theme.colors.primary, marginTop: 10, fontWeight: '700', fontSize: 14 }}>{resetMsg}</Text>}
         </View>
       ) : null}
 
