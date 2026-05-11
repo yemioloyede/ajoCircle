@@ -44,6 +44,7 @@ import LinkedAccountsScreen from './src/screens/LinkedAccountsScreen';
 
 // --- Notifications ---
 import NotificationsScreen from './src/screens/NotificationsScreen';
+import ActivityScreen from './src/screens/ActivityScreen';
 
 // --- Profile & Settings ---
 import UserProfileScreen from './src/screens/UserProfileScreen';
@@ -68,7 +69,9 @@ import LanguageSettingsScreen from './src/screens/LanguageSettingsScreen';
 const Tab = createBottomTabNavigator();
 const AuthStack = createStackNavigator();
 const HomeStack = createStackNavigator();
+const GroupsStack = createStackNavigator();
 const WalletStack = createStackNavigator();
+const ActivityStack = createStackNavigator();
 const ProfileStack = createStackNavigator();
 
 const TAB_COLOR = '#739A63';
@@ -94,7 +97,7 @@ function AuthNavigator() {
 function HomeStackNav() {
   return (
     <HomeStack.Navigator screenOptions={NO_HEADER}>
-      <HomeStack.Screen name="Groups" component={HomeScreen} />
+      <HomeStack.Screen name="HomeMain" component={HomeScreen} />
       <HomeStack.Screen name="CreateCircle" component={CreateCircleScreen} />
       <HomeStack.Screen name="CirclesHub" component={CirclesHubScreen} />
       <HomeStack.Screen name="GroupDetail" component={GroupDetailScreen} />
@@ -113,6 +116,27 @@ function HomeStackNav() {
   );
 }
 
+function GroupsStackNav() {
+  return (
+    <GroupsStack.Navigator screenOptions={NO_HEADER}>
+      <GroupsStack.Screen name="GroupsMain" component={CirclesHubScreen} />
+      <GroupsStack.Screen name="CreateCircle" component={CreateCircleScreen} />
+      <GroupsStack.Screen name="GroupDetail" component={GroupDetailScreen} />
+      <GroupsStack.Screen name="GroupMembers" component={GroupMembersScreen} />
+      <GroupsStack.Screen name="GroupInvite" component={GroupInviteScreen} />
+      <GroupsStack.Screen name="GroupRotation" component={GroupRotationScreen} />
+      <GroupsStack.Screen name="GroupWallet" component={GroupWalletScreen} />
+      <GroupsStack.Screen name="ContributionHistory" component={ContributionHistoryScreen} />
+      <GroupsStack.Screen name="MakeContribution" component={MakeContributionScreen} />
+      <GroupsStack.Screen name="PaymentSuccess" component={PaymentSuccessScreen} />
+      <GroupsStack.Screen name="FailedPayment" component={FailedPaymentScreen} />
+      <GroupsStack.Screen name="ScheduledContributions" component={ScheduledContributionsScreen} />
+      <GroupsStack.Screen name="SupportTicket" component={SupportTicketScreen} />
+      <GroupsStack.Screen name="DisputeResolution" component={DisputeResolutionScreen} />
+    </GroupsStack.Navigator>
+  );
+}
+
 // ─── Wallet stack ─────────────────────────────────────────────────────────────
 function WalletStackNav() {
   return (
@@ -127,6 +151,17 @@ function WalletStackNav() {
       <WalletStack.Screen name="LinkedAccounts" component={LinkedAccountsScreen} />
       <WalletStack.Screen name="BankAccount" component={BankAccountScreen} />
     </WalletStack.Navigator>
+  );
+}
+
+function ActivityStackNav() {
+  return (
+    <ActivityStack.Navigator screenOptions={NO_HEADER}>
+      <ActivityStack.Screen name="ActivityMain" component={ActivityScreen} />
+      <ActivityStack.Screen name="Notifications" component={NotificationsScreen} />
+      <ActivityStack.Screen name="ContributionHistory" component={ContributionHistoryScreen} />
+      <ActivityStack.Screen name="PayoutHistory" component={PayoutHistoryScreen} />
+    </ActivityStack.Navigator>
   );
 }
 
@@ -180,7 +215,12 @@ function MainApp() {
         <Tab.Screen
           name="Home"
           component={HomeStackNav}
-          options={{ tabBarLabel: 'Circles', tabBarIcon: (p) => <TabIcon {...p} label="🏠" /> }}
+          options={{ tabBarLabel: 'Home', tabBarIcon: (p) => <TabIcon {...p} label="🏠" /> }}
+        />
+        <Tab.Screen
+          name="Groups"
+          component={GroupsStackNav}
+          options={{ tabBarLabel: 'Groups', tabBarIcon: (p) => <TabIcon {...p} label="👥" /> }}
         />
         <Tab.Screen
           name="Wallet"
@@ -188,9 +228,9 @@ function MainApp() {
           options={{ tabBarLabel: 'Wallet', tabBarIcon: (p) => <TabIcon {...p} label="💰" /> }}
         />
         <Tab.Screen
-          name="Notifications"
-          component={NotificationsScreen}
-          options={{ tabBarLabel: 'Alerts', tabBarIcon: (p) => <TabIcon {...p} label="🔔" /> }}
+          name="Activity"
+          component={ActivityStackNav}
+          options={{ tabBarLabel: 'Activity', tabBarIcon: (p) => <TabIcon {...p} label="🔔" /> }}
         />
         <Tab.Screen
           name="Profile"

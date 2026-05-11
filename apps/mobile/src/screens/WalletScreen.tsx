@@ -79,9 +79,9 @@ export default function WalletScreen({ navigation }: Props) {
                 </TouchableOpacity>
               </View>
               <TouchableOpacity
-                onPress={() => navigation.navigate('Payments')}
+                onPress={() => navigation.getParent()?.navigate('Activity')}
                 style={{ marginTop: 12, height: 48, borderRadius: 12, backgroundColor: '#0E1215', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: theme.colors.white, fontSize: 14, fontWeight: '800' }}>Open Payments Hub</Text>
+                <Text style={{ color: theme.colors.white, fontSize: 14, fontWeight: '800' }}>Open Activity</Text>
               </TouchableOpacity>
             </View>
 

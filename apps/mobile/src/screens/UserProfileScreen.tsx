@@ -117,7 +117,7 @@ export default function UserProfileScreen({ navigation }: Props) {
 
         {/* ── App Settings ── */}
         <Text style={{ marginTop: 28, marginBottom: 4, color: theme.colors.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' }}>App Settings</Text>
-        <SettingRow title="Notifications" subtitle="Manage alerts for contributions and payouts" icon="bell-outline" onPress={() => navigation.getParent()?.navigate('Notifications')} />
+        <SettingRow title="Activity" subtitle="Manage alerts and history" icon="bell-outline" onPress={() => navigation.getParent()?.navigate('Activity')} />
         <SettingRow title="Currency" subtitle="Choose your preferred display currency" icon="currency-usd" onPress={() => navigation.navigate('CurrencyPreferences')} />
         <SettingRow title="Language" subtitle="Change your app language" icon="translate" onPress={() => navigation.navigate('LanguageSettings')} />
         <SettingRow title="App Settings" subtitle="Notifications, sounds, and theme" icon="cog-outline" onPress={() => navigation.navigate('AppSettings')} />

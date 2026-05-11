@@ -17,13 +17,13 @@ function getNotificationTarget(type: string) {
     return { route: 'Profile', params: { screen: 'KYC' } };
   }
   if (normalized.includes('PAYOUT')) {
-    return { route: 'Wallet', params: { screen: 'PayoutHistory' } };
+    return { route: 'Activity', params: { screen: 'PayoutHistory' } };
   }
   if (normalized.includes('CONTRIBUTION')) {
-    return { route: 'Wallet', params: { screen: 'ContributionHistory' } };
+    return { route: 'Activity', params: { screen: 'ContributionHistory' } };
   }
   if (normalized.includes('GROUP')) {
-    return { route: 'Home', params: { screen: 'Groups' } };
+    return { route: 'Groups', params: { screen: 'GroupsMain' } };
   }
   return null;
 }
