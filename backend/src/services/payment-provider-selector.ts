@@ -218,6 +218,27 @@ export class PaymentProviderSelector {
     return alternatives;
   }
 
+  async getProviderByName(
+    providerName: string,
+    countryCode: string,
+    currencyCode: string
+  ): Promise<PaymentProvider> {
+    const cacheKey = `${providerName}:${countryCode}:${currencyCode}`;
+
+    if (!this.providerCache.has(cacheKey)) {
+      const provider = await this.createProviderInstance(
+        providerName,
+        countryCode,
+        currencyCode
+      );
+      if (provider) {
+        this.providerCache.set(cacheKey, provider);
+      }
+    }
+
+    return this.providerCache.get(cacheKey) || new MockProvider(providerName, countryCode, currencyCode, '', '', this.db);
+  }
+
   /**
    * Record transaction result for health tracking
    */

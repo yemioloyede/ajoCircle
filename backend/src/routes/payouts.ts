@@ -3,9 +3,9 @@ import { requireAuth, requireRole } from '../middleware/auth';
 import { z } from 'zod';
 import { query, tx } from '../config/db';
 import { createLedgerEntry } from '../services/ledger';
-import { initiateTransfer } from '../services/paystack';
 import { v4 as uuid } from 'uuid';
 import { audit, createNotification } from '../services/audit';
+import { getPaymentProviderSelector } from '../services/payment-provider-selector';
 
 const r = Router();
 r.use(requireAuth);
@@ -68,6 +68,7 @@ r.post('/request', async (req, res) => {
 
 r.post('/:id/approve', requireRole('COMPLIANCE_ADMIN', 'SUPER_ADMIN'), async (req, res) => {
   const id = String(req.params.id);
+  const selector = getPaymentProviderSelector();
   const result = await tx(async (c) => {
     const p = await c.query(
       `select p.*, g.wallet_id from payouts p join savings_groups g on g.id=p.group_id where p.id=$1 for update`,
@@ -81,7 +82,21 @@ r.post('/:id/approve', requireRole('COMPLIANCE_ADMIN', 'SUPER_ADMIN'), async (re
       [p.rows[0].recipient_user_id]
     );
     if (!bankAccount.rowCount) throw new Error('Recipient has no primary bank account set up');
-    if (!bankAccount.rows[0].paystack_recipient_code) throw new Error('Recipient bank account has no Paystack transfer code');
+    const payoutAccount = bankAccount.rows[0];
+    const providerRecipientId = payoutAccount.provider_recipient_id || payoutAccount.paystack_recipient_code;
+    if (!providerRecipientId) throw new Error('Recipient payout account has no provider recipient id');
+
+    const provider = payoutAccount.provider_name
+      ? await selector.getProviderByName(
+        payoutAccount.provider_name,
+        payoutAccount.country_code || 'NG',
+        payoutAccount.currency_code || 'NGN'
+      )
+      : await selector.selectProvider({
+        countryCode: payoutAccount.country_code || 'NG',
+        currencyCode: payoutAccount.currency_code || 'NGN',
+        operationType: 'PAYOUT',
+      });
 
     const ref = 'PAYOUT_' + uuid().replace(/-/g, '');
     await createLedgerEntry(c, {
@@ -90,12 +105,15 @@ r.post('/:id/approve', requireRole('COMPLIANCE_ADMIN', 'SUPER_ADMIN'), async (re
       meta: { payoutId: id, recipient: p.rows[0].recipient_user_id },
     });
 
-    const transfer = await initiateTransfer(
-      p.rows[0].amount_kobo, bankAccount.rows[0].paystack_recipient_code,
-      'AjoCircle rotational payout', ref
+    const transfer = await provider.initiatePayout(
+      p.rows[0].amount_kobo / 100,
+      payoutAccount.currency_code || 'NGN',
+      providerRecipientId,
+      'AjoCircle rotational payout',
+      { payoutId: id, reference: ref }
     );
 
-    const transferCode = transfer?.transfer_code ?? null;
+    const transferCode = transfer?.providerReference ?? null;
     const upd = await c.query(
       "update payouts set status='APPROVED', approved_by=$1, approved_at=now(), transfer_reference=$2, transfer_code=$3, provider_payload=$4 where id=$5 returning *",
       [req.user!.id, ref, transferCode, JSON.stringify(transfer), id]

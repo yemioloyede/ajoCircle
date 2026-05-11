@@ -2,9 +2,11 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { z } from 'zod';
 import { query } from '../config/db';
-import { encrypt, decrypt } from '../utils/security';
+import { encrypt } from '../utils/security';
 import { resolveBank, createTransferRecipient, listBanks } from '../services/paystack';
 import { audit, createNotification } from '../services/audit';
+import { getCountryConfigService } from '../services/country-config';
+import { getPaymentProviderSelector } from '../services/payment-provider-selector';
 
 const r = Router();
 r.use(requireAuth);
@@ -59,45 +61,119 @@ r.get('/kyc', async (req, res) => {
 
 // ─── Bank Accounts ───────────────────────────────────────────────────────────
 
+const payoutAccountSchema = z.object({
+  countryCode: z.string().length(2).default('NG'),
+  currencyCode: z.string().length(3).optional(),
+  payoutMethodType: z.enum(['BANK_ACCOUNT', 'MOBILE_MONEY']).default('BANK_ACCOUNT'),
+  providerName: z.string().min(2).max(50).optional(),
+  bankCode: z.string().min(2).max(20).optional(),
+  bankName: z.string().min(2).max(100).optional(),
+  accountNumber: z.string().min(6).max(34),
+  accountName: z.string().min(2).max(120).optional(),
+  makePrimary: z.boolean().default(true),
+});
+
 r.get('/bank-accounts', async (req, res) => {
   const rows = await query(
-    'select id, bank_name, bank_code, account_name, is_primary, created_at from bank_accounts where user_id=$1 order by is_primary desc, created_at desc',
+    `select id, country_code, currency_code, payout_method_type, provider_name,
+            bank_name, bank_code, account_name, is_primary, created_at
+     from bank_accounts
+     where user_id=$1
+     order by is_primary desc, created_at desc`,
     [req.user!.id]
   );
   res.json({ accounts: rows.rows });
 });
 
-r.get('/banks', async (_req, res) => {
+r.get('/banks', async (req, res) => {
+  const countryCode = String(req.query.countryCode || 'NG').toUpperCase();
+  if (countryCode !== 'NG') {
+    res.json({
+      banks: [],
+      countryCode,
+      supportsDirectory: false,
+      message: 'Live bank directory lookup is only available for Nigeria right now. Enter the routing code manually for this country.',
+    });
+    return;
+  }
+
   const banks = await listBanks();
-  res.json({ banks });
+  res.json({ banks, countryCode, supportsDirectory: true });
 });
 
 r.post('/bank-accounts', async (req, res) => {
-  const s = z.object({
-    bankCode: z.string().min(3).max(10),
-    bankName: z.string().min(2).max(100).optional(),
-    accountNumber: z.string().regex(/^\d{10}$/, 'Account number must be 10 digits'),
-    makePrimary: z.boolean().default(true),
-  }).parse(req.body);
+  const s = payoutAccountSchema.parse(req.body);
+  const countryService = getCountryConfigService();
+  const selector = getPaymentProviderSelector();
 
-  // Resolve account with Paystack
-  let resolved: any;
-  try {
-    resolved = await resolveBank(s.accountNumber, s.bankCode);
-  } catch (e: any) {
-    return res.status(400).json({ error: 'Could not resolve bank account: ' + e.message });
+  const countryCode = s.countryCode.toUpperCase();
+  const country = await countryService.getCountry(countryCode);
+  if (!country) return res.status(404).json({ error: 'Unsupported payout country' });
+
+  const currencyCode = (s.currencyCode || country.primaryCurrencyCode).toUpperCase();
+  const accountNumber = s.accountNumber.trim();
+  const bankCode = s.bankCode?.trim();
+
+  if (s.payoutMethodType === 'BANK_ACCOUNT' && !bankCode) {
+    return res.status(400).json({ error: 'bankCode is required for bank account payouts' });
   }
 
-  // Create Paystack transfer recipient
-  let recipient: any;
+  const provider = s.providerName
+    ? await selector.getProviderByName(s.providerName.toLowerCase(), countryCode, currencyCode)
+    : await selector.selectProvider({
+      countryCode,
+      currencyCode,
+      operationType: 'PAYOUT',
+    });
+  const providerMeta = provider.getProviderMeta();
+
+  let resolved: { account_name?: string; bank_name?: string; account_number?: string } = {};
   try {
-    recipient = await createTransferRecipient(resolved.account_name, s.accountNumber, s.bankCode);
+    if (providerMeta.name === 'paystack' && countryCode === 'NG' && bankCode) {
+      resolved = await resolveBank(accountNumber, bankCode);
+    } else {
+      const verification = await provider.verifyAccountDetails(accountNumber, bankCode);
+      if (!verification.isValid) {
+        return res.status(400).json({ error: verification.message || 'Could not verify payout destination' });
+      }
+      resolved = {
+        account_name: verification.accountName,
+        bank_name: verification.bankName,
+        account_number: verification.accountNumber,
+      };
+    }
   } catch (e: any) {
-    return res.status(400).json({ error: 'Could not create transfer recipient: ' + e.message });
+    return res.status(400).json({ error: 'Could not verify payout destination: ' + e.message });
   }
 
-  const acctEnc = encrypt(s.accountNumber);
-  const bankName = s.bankName?.trim() || resolved.bank_name || 'Bank';
+  let recipientId = '';
+  let recipientDetails: Record<string, any> | undefined;
+  try {
+    if (providerMeta.name === 'paystack' && countryCode === 'NG' && bankCode) {
+      const recipient = await createTransferRecipient(resolved.account_name || s.accountName || 'Recipient', accountNumber, bankCode);
+      recipientId = recipient.recipient_code;
+      recipientDetails = recipient;
+    } else {
+      const recipient = await provider.createPaymentRecipient(
+        accountNumber,
+        s.accountName?.trim() || resolved.account_name || 'Recipient',
+        bankCode,
+        s.payoutMethodType,
+        { countryCode, currencyCode, payoutMethodType: s.payoutMethodType }
+      );
+      if (!recipient.success) {
+        return res.status(400).json({ error: recipient.message || 'Could not create payout recipient' });
+      }
+      recipientId = recipient.recipientId;
+      recipientDetails = recipient.details;
+    }
+  } catch (e: any) {
+    return res.status(400).json({ error: 'Could not create payout recipient: ' + e.message });
+  }
+
+  const acctEnc = encrypt(accountNumber);
+  const bankName = s.bankName?.trim() || resolved.bank_name || (s.payoutMethodType === 'MOBILE_MONEY' ? 'Mobile Money' : 'Bank');
+  const accountName = s.accountName?.trim() || resolved.account_name || 'Recipient';
 
   // Optionally demote other primary accounts
   if (s.makePrimary) {
@@ -105,16 +181,43 @@ r.post('/bank-accounts', async (req, res) => {
   }
 
   const row = await query(
-    `insert into bank_accounts(user_id,bank_name,bank_code,account_number_encrypted,account_number_iv,account_name,paystack_recipient_code,is_primary)
-     values($1,$2,$3,$4,$5,$6,$7,$8) returning id,bank_name,bank_code,account_name,is_primary,created_at`,
-    [req.user!.id, bankName, s.bankCode, acctEnc.encrypted, acctEnc.iv, resolved.account_name, recipient.recipient_code, s.makePrimary]
+    `insert into bank_accounts(
+        user_id,country_code,currency_code,payout_method_type,provider_name,
+        bank_name,bank_code,account_number_encrypted,account_number_iv,account_name,
+        provider_recipient_id,provider_metadata,paystack_recipient_code,is_primary
+      )
+      values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+      returning id,country_code,currency_code,payout_method_type,provider_name,bank_name,bank_code,account_name,is_primary,created_at`,
+    [
+      req.user!.id,
+      countryCode,
+      currencyCode,
+      s.payoutMethodType,
+      providerMeta.name,
+      bankName,
+      bankCode || 'MANUAL',
+      acctEnc.encrypted,
+      acctEnc.iv,
+      accountName,
+      recipientId,
+      JSON.stringify({
+        verification: resolved,
+        recipient: recipientDetails || {},
+      }),
+      providerMeta.name === 'paystack' ? recipientId : null,
+      s.makePrimary,
+    ]
   );
 
   await audit(req.user!.id, 'BANK_ACCOUNT_ADDED', 'USER', req.user!.id, {
-    details: `Bank account added (${bankName})`,
+    details: `Payout account added (${bankName})`,
+    countryCode,
+    currencyCode,
+    payoutMethodType: s.payoutMethodType,
+    providerName: providerMeta.name,
     bankName,
-    bankCode: s.bankCode,
-    accountEnding: s.accountNumber.slice(-4),
+    bankCode: bankCode || 'MANUAL',
+    accountEnding: accountNumber.slice(-4),
   }, req);
   res.json({ account: row.rows[0] });
 });

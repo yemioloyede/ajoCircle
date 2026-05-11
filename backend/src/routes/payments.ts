@@ -4,6 +4,41 @@ import { getPaymentProviderSelector } from '../services/payment-provider-selecto
 
 const r = Router();
 
+function getPayoutMethods(country: { countryCode: string; countryName: string; primaryCurrencyCode: string; region: string; supportedPaymentProviders: string[] }) {
+  const providers = country.supportedPaymentProviders.map((provider) => provider.toLowerCase());
+  const methods = [] as Array<Record<string, any>>;
+
+  if (country.countryCode === 'KE' || providers.includes('mpesa')) {
+    methods.push({
+      type: 'MOBILE_MONEY',
+      label: 'Mobile money wallet',
+      description: 'Use a mobile money number for member payouts.',
+      accountNumberLabel: 'Mobile money number',
+      bankCodeLabel: 'Provider code',
+      bankCodePlaceholder: 'Optional provider or shortcode',
+      accountNumberPlaceholder: 'e.g. 2547XXXXXXXX',
+      requiresBankCode: false,
+      supportsBankDirectory: false,
+    });
+  }
+
+  methods.push({
+    type: 'BANK_ACCOUNT',
+    label: country.countryCode === 'NG' ? 'Nigerian bank account' : 'Bank account',
+    description: country.countryCode === 'NG'
+      ? 'Resolve and save a local bank account for automatic payouts.'
+      : 'Save a payout bank account using the routing details required in your country.',
+    accountNumberLabel: country.region === 'DIASPORA' ? 'Account / IBAN number' : 'Account number',
+    bankCodeLabel: country.countryCode === 'NG' ? 'Bank code' : country.countryCode === 'US' ? 'Routing number' : country.countryCode === 'GB' ? 'Sort code' : 'Routing / bank code',
+    bankCodePlaceholder: country.countryCode === 'NG' ? 'Select a bank code' : country.countryCode === 'US' ? '9-digit routing number' : country.countryCode === 'GB' ? '6-digit sort code' : 'Enter bank or routing code',
+    accountNumberPlaceholder: country.region === 'DIASPORA' ? 'Enter account or IBAN number' : 'Enter account number',
+    requiresBankCode: true,
+    supportsBankDirectory: country.countryCode === 'NG',
+  });
+
+  return methods;
+}
+
 r.get('/countries', async (_req, res, next) => {
   try {
     const service = getCountryConfigService();
@@ -26,6 +61,39 @@ r.get('/countries/:countryCode', async (req, res, next) => {
     }
 
     res.json({ country });
+  } catch (error) {
+    next(error);
+  }
+});
+
+r.get('/payout-methods/:countryCode', async (req, res, next) => {
+  try {
+    const service = getCountryConfigService();
+    const selector = getPaymentProviderSelector();
+    const countryCode = String(req.params.countryCode || '').toUpperCase();
+    const country = await service.getCountry(countryCode);
+
+    if (!country) {
+      res.status(404).json({ error: 'Country not found' });
+      return;
+    }
+
+    const selectedProvider = await selector.selectProvider({
+      countryCode,
+      currencyCode: country.primaryCurrencyCode,
+      operationType: 'PAYOUT',
+    });
+
+    res.json({
+      country: {
+        countryCode: country.countryCode,
+        countryName: country.countryName,
+        primaryCurrencyCode: country.primaryCurrencyCode,
+        region: country.region,
+      },
+      methods: getPayoutMethods(country),
+      selectedProvider: selectedProvider.getProviderMeta(),
+    });
   } catch (error) {
     next(error);
   }

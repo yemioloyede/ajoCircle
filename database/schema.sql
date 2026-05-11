@@ -48,16 +48,23 @@ create table if not exists kyc_submissions(
 create table if not exists bank_accounts(
   id uuid primary key default uuid_generate_v4(),
   user_id uuid not null references users(id),
+  country_code text not null default 'NG',
+  currency_code text not null default 'NGN',
+  payout_method_type text not null default 'BANK_ACCOUNT',
+  provider_name text,
   bank_name text not null,
   bank_code text not null,
   account_number_encrypted text not null,
   account_number_iv text not null,
   account_name text not null,
+  provider_recipient_id text,
+  provider_metadata jsonb not null default '{}'::jsonb,
   paystack_recipient_code text,
   is_primary boolean not null default false,
   created_at timestamptz default now()
 );
 create index if not exists idx_bank_accounts_user on bank_accounts(user_id);
+
 
 -- Notifications table
 create table if not exists notifications(
