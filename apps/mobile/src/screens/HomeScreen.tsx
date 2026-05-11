@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { View, Text, ScrollView, RefreshControl, ActivityIndicator, Linking, Alert, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Input } from '../components/ui';
+import { Ionicons } from '@expo/vector-icons';
+import { Button } from '../components/ui';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { theme } from '../theme';
@@ -16,8 +17,6 @@ export default function HomeScreen({ navigation }: Props) {
   const [contributions, setContributions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [invite, setInvite] = useState('');
-  const [joining, setJoining] = useState(false);
   const [err, setErr] = useState('');
   const [totalSavedKobo, setTotalSavedKobo] = useState(0);
   const [pendingRef, setPendingRef] = useState<string | null>(null);
@@ -158,39 +157,6 @@ export default function HomeScreen({ navigation }: Props) {
       .sort((a, b) => a.nextDue.getTime() - b.nextDue.getTime());
   }, [groups, contributions]);
 
-  function normalizeInviteCode(input: string) {
-    const value = input.trim();
-    if (!value) return '';
-    if (!value.includes('://') && !value.includes('?')) return value;
-    try {
-      const parsed = new URL(value);
-      const code = parsed.searchParams.get('code') || parsed.searchParams.get('inviteCode');
-      return (code || value).trim();
-    } catch {
-      return value;
-    }
-  }
-
-  async function join() {
-    const inviteCode = normalizeInviteCode(invite);
-    if (!inviteCode) {
-      setErr('Enter an invite code');
-      return;
-    }
-
-    setJoining(true);
-    setErr('');
-    try {
-      await api('/api/groups/join', { method: 'POST', body: JSON.stringify({ inviteCode }) });
-      setInvite('');
-      await load();
-    } catch (e: any) {
-      setErr(e.message);
-    } finally {
-      setJoining(false);
-    }
-  }
-
   async function pay(groupId: string) {
     try {
       const j = await api('/api/contributions/initialize', {
@@ -257,13 +223,18 @@ export default function HomeScreen({ navigation }: Props) {
         contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.colors.primary} />}>
         <View style={{ marginTop: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={{ color: theme.colors.muted, fontSize: 14 }}>Good morning,</Text>
             <Text style={{ color: theme.colors.text, fontSize: 22, fontWeight: '900', lineHeight: 28, marginTop: 4 }}>{user?.full_name || 'Ajo User'}</Text>
           </View>
-          <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: theme.colors.white, fontSize: 18, fontWeight: '900' }}>{userInitials}</Text>
-          </View>
+          <TouchableOpacity onPress={() => navigation?.getParent()?.navigate('Activity')} style={{ marginRight: 12 }}>
+            <Ionicons name="notifications-outline" size={26} color={theme.colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation?.navigate('ProfileMain')}>
+            <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: theme.colors.white, fontSize: 18, fontWeight: '900' }}>{userInitials}</Text>
+            </View>
+          </TouchableOpacity>
         </View>
 
         {err ? <Text style={{ color: theme.colors.danger, marginBottom: theme.spacing.sm, fontWeight: '700' }}>{err}</Text> : null}
@@ -362,31 +333,22 @@ export default function HomeScreen({ navigation }: Props) {
           </View>
         ))}
 
-        <View style={{ marginTop: 18, borderRadius: 20, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 18 }}>
-          <Text style={{ fontSize: 17, fontWeight: '900', color: theme.colors.text }}>Join a Circle</Text>
-          <Text style={{ marginTop: 6, color: theme.colors.muted, fontSize: 15 }}>Got an invite code? Paste it here to join.</Text>
-          <Input placeholder="Invite code" value={invite} onChangeText={setInvite} autoCapitalize="none" style={{ marginTop: theme.spacing.sm }} />
-          {joining ? <ActivityIndicator color={theme.colors.primary} /> : <Button title="Join Circle" onPress={join} />}
+        <View style={{ marginTop: 18, flexDirection: 'row', gap: 12 }}>
+          <TouchableOpacity
+            onPress={() => navigation?.getParent()?.navigate('Groups')}
+            style={{ flex: 1, height: 56, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}>
+            <Ionicons name="people-outline" size={20} color={theme.colors.primary} />
+            <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 14 }}>My Circles</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => navigation?.navigate('CreateCircle')}
+            style={{ flex: 1, height: 56, borderRadius: 16, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 }}>
+            <Ionicons name="add-circle-outline" size={20} color={theme.colors.white} />
+            <Text style={{ color: theme.colors.white, fontWeight: '800', fontSize: 14 }}>New Circle</Text>
+          </TouchableOpacity>
         </View>
 
       </ScrollView>
-      <TouchableOpacity
-        onPress={() => navigation?.navigate('CreateCircle')}
-        style={{
-          position: 'absolute',
-          right: 22,
-          bottom: 24,
-          width: 58,
-          height: 58,
-          borderRadius: 29,
-          backgroundColor: theme.colors.primary,
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.12)',
-        }}>
-        <Text style={{ color: theme.colors.white, fontSize: 28, lineHeight: 30, fontWeight: '600' }}>+</Text>
-      </TouchableOpacity>
     </SafeAreaView>
   );
 }
