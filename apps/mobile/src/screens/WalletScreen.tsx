@@ -78,6 +78,11 @@ export default function WalletScreen({ navigation }: Props) {
                   <Text style={{ color: theme.colors.white, fontSize: 14, fontWeight: '800' }}>View Payouts</Text>
                 </TouchableOpacity>
               </View>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Payments')}
+                style={{ marginTop: 12, height: 48, borderRadius: 12, backgroundColor: '#0E1215', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: theme.colors.white, fontSize: 14, fontWeight: '800' }}>Open Payments Hub</Text>
+              </TouchableOpacity>
             </View>
 
             <View style={{ flexDirection: 'row', gap: 12, marginTop: 14 }}>

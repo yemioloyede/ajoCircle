@@ -13,6 +13,7 @@ import AuthScreen from './src/screens/AuthScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import CreateCircleScreen from './src/screens/CreateCircleScreen';
 import WalletScreen from './src/screens/WalletScreen';
+import PaymentsScreen from './src/screens/PaymentsScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import UserProfileScreen from './src/screens/UserProfileScreen';
 import BankAccountScreen from './src/screens/BankAccountScreen';
@@ -86,6 +87,11 @@ function MainApp() {
           name="Wallet"
           component={WalletStackNav}
           options={{ tabBarLabel: 'Wallet', tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} label="💰" /> }}
+        />
+        <Tab.Screen
+          name="Payments"
+          component={PaymentsScreen}
+          options={{ tabBarLabel: 'Payments', tabBarIcon: ({ color, focused }) => <TabIcon focused={focused} color={color} label="💳" /> }}
         />
         <Tab.Screen
           name="Notifications"
