@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, ActivityIndicator, TouchableOpacity, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../api/client';
 import { Card, Button, Pill, SectionHeader, StatLine, InfoBanner } from '../components/ui';
@@ -20,6 +20,14 @@ type HealthRow = {
   successRate: number;
 };
 
+type GroupRow = {
+  id: string;
+  name: string;
+  contribution_amount_kobo: number;
+  frequency: string;
+  status: string;
+};
+
 const DEFAULT_OPERATION = 'COLLECTION';
 
 export default function PaymentsScreen() {
@@ -27,18 +35,35 @@ export default function PaymentsScreen() {
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
   const [health, setHealth] = useState<HealthRow[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<any>(null);
+  const [groups, setGroups] = useState<GroupRow[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [pendingRef, setPendingRef] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [selecting, setSelecting] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const load = useCallback(async () => {
     setError('');
-    const j = await api('/api/payments/countries');
-    const rows: Country[] = j?.countries || [];
+    const [countriesRes, groupsRes] = await Promise.all([
+      api('/api/payments/countries'),
+      api('/api/groups'),
+    ]);
+
+    const rows: Country[] = countriesRes?.countries || [];
     setCountries(rows);
     if (!selectedCountry && rows.length > 0) {
       setSelectedCountry(rows[0]);
+    }
+
+    const groupRows: GroupRow[] = Array.isArray(groupsRes)
+      ? groupsRes
+      : groupsRes?.groups || [];
+    setGroups(groupRows);
+    if (!selectedGroupId && groupRows.length > 0) {
+      setSelectedGroupId(groupRows[0].id);
     }
   }, [selectedCountry]);
 
@@ -63,6 +88,8 @@ export default function PaymentsScreen() {
       .then((j) => setHealth(j?.health || []))
       .catch(() => setHealth([]));
   }, [selectedCountry]);
+
+  const selectedGroup = useMemo(() => groups.find((group) => group.id === selectedGroupId) || null, [groups, selectedGroupId]);
 
   const providerSummary = useMemo(() => {
     if (!selectedCountry) return [];
@@ -95,6 +122,56 @@ export default function PaymentsScreen() {
       setError(e.message || 'Unable to select provider');
     } finally {
       setSelecting(false);
+    }
+  }
+
+  async function startContributionPayment() {
+    if (!selectedGroup) return;
+    setPaying(true);
+    setError('');
+    try {
+      const j = await api('/api/contributions/initialize', {
+        method: 'POST',
+        body: JSON.stringify({ groupId: selectedGroup.id }),
+      });
+
+      const url = j?.payment?.authorization_url;
+      const ref = j?.contribution?.payment_reference;
+      if (ref) setPendingRef(ref);
+
+      if (url) {
+        const canOpen = await Linking.canOpenURL(url);
+        if (canOpen) {
+          await Linking.openURL(url);
+        } else {
+          Alert.alert('Payment link unavailable', url);
+        }
+      } else {
+        Alert.alert('Payment started', j?.message || 'Contribution payment initialized.');
+      }
+    } catch (e: any) {
+      setError(e.message || 'Unable to start payment');
+    } finally {
+      setPaying(false);
+    }
+  }
+
+  async function confirmContributionPayment() {
+    if (!pendingRef) return;
+    setConfirming(true);
+    setError('');
+    try {
+      const j = await api('/api/contributions/verify', {
+        method: 'POST',
+        body: JSON.stringify({ reference: pendingRef }),
+      });
+      setPendingRef(null);
+      Alert.alert('Payment confirmed', j?.message || 'Contribution recorded.');
+      await refresh();
+    } catch (e: any) {
+      setError(e.message || 'Could not confirm contribution');
+    } finally {
+      setConfirming(false);
     }
   }
 
@@ -142,6 +219,49 @@ export default function PaymentsScreen() {
               </TouchableOpacity>
             ))}
           </ScrollView>
+        </Card>
+
+        <Card>
+          <SectionHeader title="Start a contribution" />
+          <Text style={{ color: theme.colors.muted, marginBottom: 10 }}>
+            Pick one of your groups and initialize a payment collection.
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+            {groups.map((group) => (
+              <TouchableOpacity
+                key={group.id}
+                onPress={() => setSelectedGroupId(group.id)}
+                style={{
+                  paddingVertical: 10,
+                  paddingHorizontal: 14,
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: selectedGroupId === group.id ? theme.colors.primary : theme.colors.border,
+                  backgroundColor: selectedGroupId === group.id ? theme.colors.primarySoft : theme.colors.surface,
+                  minWidth: 160,
+                }}>
+                <Text style={{ color: theme.colors.text, fontWeight: '900', fontSize: 13 }}>{group.name}</Text>
+                <Text style={{ color: theme.colors.muted, fontSize: 12, marginTop: 4 }}>
+                  ₦{Math.round((group.contribution_amount_kobo || 0) / 100).toLocaleString()} · {group.frequency}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {selectedGroup ? (
+            <View style={{ marginTop: 12 }}>
+              <Text style={{ color: theme.colors.text, fontWeight: '800', fontSize: 15 }}>{selectedGroup.name}</Text>
+              <Text style={{ color: theme.colors.muted, fontSize: 13, marginTop: 4 }}>
+                Contribution amount: ₦{Math.round((selectedGroup.contribution_amount_kobo || 0) / 100).toLocaleString()}
+              </Text>
+              <Button title={paying ? 'Starting payment...' : 'Pay Contribution'} onPress={startContributionPayment} loading={paying} style={{ marginTop: 12 }} />
+              {pendingRef ? (
+                <TouchableOpacity onPress={confirmContributionPayment} disabled={confirming} style={{ marginTop: 10, height: 48, borderRadius: 12, borderWidth: 1, borderColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: theme.colors.primary, fontWeight: '800' }}>{confirming ? 'Confirming...' : 'Confirm Payment'}</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          ) : null}
         </Card>
 
         {selectedCountry ? (

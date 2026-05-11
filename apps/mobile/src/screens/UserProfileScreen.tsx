@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../api/client';
 import { theme } from '../theme';
 
 interface Props {
@@ -12,9 +13,14 @@ interface Props {
 export default function UserProfileScreen({ navigation }: Props) {
   const { user, logout } = useAuth();
   const payoutAccounts = Array.isArray((user as any)?.payout_accounts) ? (user as any).payout_accounts : [];
+  const [kyc, setKyc] = useState<any>(null);
   const comingSoon = (feature: string) => {
     Alert.alert('Coming soon', `${feature} will be available in an upcoming update.`);
   };
+
+  useEffect(() => {
+    api('/api/users/kyc').then((j) => setKyc(j?.kyc ?? j ?? null)).catch(() => setKyc(null));
+  }, []);
 
   const initials = useMemo(() => {
     if (!user?.full_name) return 'A';
@@ -75,6 +81,20 @@ export default function UserProfileScreen({ navigation }: Props) {
 
         <View style={{ marginTop: 14, borderRadius: 14, borderWidth: 1, borderColor: '#274129', backgroundColor: '#111815', padding: 14 }}>
           <Text style={{ color: theme.colors.text, fontSize: 13, lineHeight: 18 }}>Payouts are automatically sent to your primary account at the end of your circle rotation.</Text>
+        </View>
+
+        <View style={{ marginTop: 16, borderRadius: 18, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 16 }}>
+          <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '900' }}>KYC Status</Text>
+          <Text style={{ color: theme.colors.muted, marginTop: 8, fontSize: 13 }}>
+            {kyc?.status || 'NOT_SUBMITTED'}
+            {kyc?.updated_at ? ` • Updated ${new Date(kyc.updated_at).toLocaleDateString()}` : ''}
+          </Text>
+          {kyc?.rejection_reason ? (
+            <Text style={{ color: theme.colors.danger, marginTop: 8, fontSize: 12 }}>{kyc.rejection_reason}</Text>
+          ) : null}
+          <TouchableOpacity onPress={() => navigation.navigate('KYC')} style={{ marginTop: 12, height: 48, borderRadius: 12, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: theme.colors.white, fontWeight: '800' }}>Complete KYC</Text>
+          </TouchableOpacity>
         </View>
 
         <Text style={{ marginTop: 22, color: theme.colors.text, fontSize: 18, fontWeight: '900', textAlign: 'center' }}>Security & Preferences</Text>
