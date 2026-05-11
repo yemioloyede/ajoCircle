@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
@@ -14,9 +14,6 @@ export default function UserProfileScreen({ navigation }: Props) {
   const { user, logout } = useAuth();
   const payoutAccounts = Array.isArray((user as any)?.payout_accounts) ? (user as any).payout_accounts : [];
   const [kyc, setKyc] = useState<any>(null);
-  const comingSoon = (feature: string) => {
-    Alert.alert('Coming soon', `${feature} will be available in an upcoming update.`);
-  };
 
   useEffect(() => {
     api('/api/users/kyc').then((j) => setKyc(j?.kyc ?? j ?? null)).catch(() => setKyc(null));
@@ -60,8 +57,8 @@ export default function UserProfileScreen({ navigation }: Props) {
 
         <View style={{ marginTop: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={{ color: theme.colors.text, fontSize: 18, fontWeight: '900' }}>Payout Accounts</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('BankAccounts')}>
-            <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '800' }}>+ Add New</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('LinkedAccounts')}>
+            <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '800' }}>Manage →</Text>
           </TouchableOpacity>
         </View>
 
@@ -97,14 +94,35 @@ export default function UserProfileScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        <Text style={{ marginTop: 22, color: theme.colors.text, fontSize: 18, fontWeight: '900', textAlign: 'center' }}>Security & Preferences</Text>
+        {/* ── Finance & Analytics ── */}
+        <Text style={{ marginTop: 28, marginBottom: 4, color: theme.colors.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' }}>Finance & Analytics</Text>
+        <SettingRow title="Trust Score" subtitle="See how reliable you are in circles" icon="star-circle-outline" onPress={() => navigation.navigate('TrustScore')} />
+        <SettingRow title="Financial Insights" subtitle="Savings stats and contribution trends" icon="chart-line" onPress={() => navigation.navigate('FinancialInsights')} />
+        <SettingRow title="Achievements" subtitle="Badges and milestones you have earned" icon="trophy-outline" onPress={() => navigation.navigate('Achievements')} />
+        <SettingRow title="Refer & Earn" subtitle="Invite friends and earn rewards" icon="gift-outline" onPress={() => navigation.navigate('Referral')} />
 
-        <SettingRow title="Change PIN" subtitle="Secure your transaction authorizations" icon="lock-reset" onPress={() => comingSoon('Change PIN')} />
-        <SettingRow title="Biometric Login" subtitle="Use FaceID or TouchID to sign in" icon="fingerprint" onPress={() => comingSoon('Biometric Login')} />
+        {/* ── Security ── */}
+        <Text style={{ marginTop: 28, marginBottom: 4, color: theme.colors.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' }}>Security</Text>
+        <SettingRow title="Security Center" subtitle="Password, PIN, biometrics, sessions" icon="shield-lock-outline" onPress={() => navigation.navigate('SecurityCenter')} />
+        <SettingRow title="Two-Factor Auth" subtitle="Add an extra layer of security" icon="shield-key-outline" onPress={() => navigation.navigate('TwoFactorAuth')} />
+        <SettingRow title="Active Sessions" subtitle="View devices logged into your account" icon="monitor-multiple" onPress={() => navigation.navigate('ActiveSessions')} />
+        <SettingRow title="Privacy & Consent" subtitle="Data usage and permissions" icon="eye-off-outline" onPress={() => navigation.navigate('PrivacyConsent')} />
+        <SettingRow title="Compliance Status" subtitle="KYC progress and account limits" icon="check-decagram-outline" onPress={() => navigation.navigate('ComplianceStatus')} />
+
+        {/* ── Support ── */}
+        <Text style={{ marginTop: 28, marginBottom: 4, color: theme.colors.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' }}>Support</Text>
+        <SettingRow title="Help Center" subtitle="FAQs and step-by-step guides" icon="help-circle-outline" onPress={() => navigation.navigate('HelpCenter')} />
+        <SettingRow title="Contact Support" subtitle="Open a ticket with our team" icon="message-text-outline" onPress={() => navigation.navigate('SupportTicket')} />
+        <SettingRow title="Dispute Resolution" subtitle="Report a payment or payout issue" icon="alert-circle-outline" onPress={() => navigation.navigate('DisputeResolution')} />
+
+        {/* ── App Settings ── */}
+        <Text style={{ marginTop: 28, marginBottom: 4, color: theme.colors.muted, fontSize: 12, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase' }}>App Settings</Text>
         <SettingRow title="Notifications" subtitle="Manage alerts for contributions and payouts" icon="bell-outline" onPress={() => navigation.getParent()?.navigate('Notifications')} />
-        <SettingRow title="Two-Factor Auth" subtitle="Add an extra layer of security" icon="shield-key-outline" onPress={() => comingSoon('Two-Factor Auth')} />
+        <SettingRow title="Currency" subtitle="Choose your preferred display currency" icon="currency-usd" onPress={() => navigation.navigate('CurrencyPreferences')} />
+        <SettingRow title="Language" subtitle="Change your app language" icon="translate" onPress={() => navigation.navigate('LanguageSettings')} />
+        <SettingRow title="App Settings" subtitle="Notifications, sounds, and theme" icon="cog-outline" onPress={() => navigation.navigate('AppSettings')} />
 
-        <View style={{ marginTop: 22, borderRadius: 16, borderWidth: 1, borderColor: '#5A2A36', padding: 16 }}>
+        <View style={{ marginTop: 28, borderRadius: 16, borderWidth: 1, borderColor: '#5A2A36', padding: 16 }}>
           <TouchableOpacity onPress={logout} style={{ height: 54, borderRadius: 14, backgroundColor: theme.colors.danger, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: '#180E13', fontSize: 15, fontWeight: '900' }}>Sign Out</Text>
           </TouchableOpacity>
