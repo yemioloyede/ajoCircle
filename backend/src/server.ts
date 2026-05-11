@@ -34,6 +34,7 @@ const allowedOrigins = [
   'https://ajo-circle.vercel.app',
   'http://localhost:3000',
   'http://localhost:19006',
+  'http://localhost:8081',
   'http://localhost:3001',
 ];
 
