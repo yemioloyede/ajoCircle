@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const PUBLIC_PATHS = ['/login', '/api/auth/login'];
 
+function withNoStore(res: NextResponse): NextResponse {
+  res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  return res;
+}
+
+function redirectToLogin(req: NextRequest): NextResponse {
+  return withNoStore(NextResponse.redirect(new URL('/login', req.url)));
+}
+
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isRscRequest = req.nextUrl.searchParams.has('_rsc') || req.headers.get('rsc') === '1';
@@ -15,38 +24,38 @@ export function middleware(req: NextRequest) {
     pathname === '/sitemap.xml' ||
     /\.[a-zA-Z0-9]+$/.test(pathname)
   ) {
-    return NextResponse.next();
+    return withNoStore(NextResponse.next());
   }
 
   // Avoid redirecting framework prefetch/RSC probes to /login.
   // Redirect responses on these probes can surface as noisy 404s in the browser console.
   if (isRscRequest || isPrefetch) {
-    return NextResponse.next();
+    return withNoStore(NextResponse.next());
   }
 
-  if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) return NextResponse.next();
+  if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) return withNoStore(NextResponse.next());
 
   const token = req.cookies.get('adminToken')?.value;
   if (!token) {
-    return NextResponse.redirect(new URL('/login', req.url));
+    return redirectToLogin(req);
   }
 
   try {
     const payloadSegment = token.split('.')[1];
-    if (!payloadSegment) return NextResponse.redirect(new URL('/login', req.url));
+    if (!payloadSegment) return redirectToLogin(req);
     const payload = JSON.parse(atob(payloadSegment.replace(/-/g, '+').replace(/_/g, '/')));
     const adminRoles = ['COMPLIANCE_ADMIN', 'SUPER_ADMIN'];
     if (!payload?.role || !adminRoles.includes(payload.role)) {
-      return NextResponse.redirect(new URL('/login', req.url));
+      return redirectToLogin(req);
     }
     if (payload.exp && payload.exp * 1000 < Date.now()) {
-      return NextResponse.redirect(new URL('/login', req.url));
+      return redirectToLogin(req);
     }
   } catch {
-    return NextResponse.redirect(new URL('/login', req.url));
+    return redirectToLogin(req);
   }
 
-  return NextResponse.next();
+  return withNoStore(NextResponse.next());
 }
 
 export const config = {
