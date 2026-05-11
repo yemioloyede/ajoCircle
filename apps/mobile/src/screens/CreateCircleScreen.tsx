@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, StyleSheet, TextInput } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, StyleSheet, TextInput, Share } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '../api/client';
 import { theme } from '../theme';
@@ -21,6 +21,7 @@ export default function CreateCircleScreen({ navigation }: Props) {
   const [frequency, setFrequency] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY'>('WEEKLY');
   const [members, setMembers] = useState(12);
   const [creating, setCreating] = useState(false);
+  const [createdGroup, setCreatedGroup] = useState<any>(null);
 
   const total = useMemo(() => {
     const amt = Number(amount) || 0;
@@ -59,7 +60,7 @@ export default function CreateCircleScreen({ navigation }: Props) {
       setCreating(true);
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      await api('/api/groups', {
+      const group = await api('/api/groups', {
         method: 'POST',
         body: JSON.stringify({
           name: name.trim(),
@@ -70,12 +71,72 @@ export default function CreateCircleScreen({ navigation }: Props) {
           startDate: tomorrow.toISOString().slice(0, 10),
         }),
       });
-      navigation.goBack();
+      setCreatedGroup(group);
     } catch (e: any) {
       Alert.alert('Unable to create circle', e.message);
     } finally {
       setCreating(false);
     }
+  }
+
+  async function shareInvite() {
+    if (!createdGroup?.invite_code) return;
+    await Share.share({
+      message: `Join my AjoCircle circle "${createdGroup.name}"\n\nInvite code: ${createdGroup.invite_code}\nContribution: ₦${Number(amount || 0).toLocaleString()} every ${frequency.toLowerCase()}.`,
+    });
+  }
+
+  if (createdGroup) {
+    return (
+      <ScrollView style={{ flex: 1, backgroundColor: theme.colors.background }} contentContainerStyle={{ paddingBottom: 44 }}>
+        <View style={{ height: 86, borderBottomWidth: 1, borderBottomColor: theme.colors.border, paddingHorizontal: 22, flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="chevron-back" size={24} color={theme.colors.text} />
+          </TouchableOpacity>
+          <Text style={{ color: theme.colors.text, marginLeft: 14, fontSize: 18, fontWeight: '800' }}>Circle Created</Text>
+        </View>
+
+        <View style={{ paddingHorizontal: 22, paddingTop: 20 }}>
+          <View style={{ borderRadius: 24, borderWidth: 1, borderColor: '#274129', backgroundColor: '#101714', padding: 18 }}>
+            <Text style={{ color: theme.colors.primary, fontSize: 14, fontWeight: '900' }}>Success</Text>
+            <Text style={{ color: theme.colors.text, fontSize: 24, fontWeight: '900', marginTop: 8 }}>{createdGroup.name}</Text>
+            <Text style={{ color: theme.colors.muted, marginTop: 8, lineHeight: 20 }}>
+              Your circle is live. Share the invite code below so members can join immediately.
+            </Text>
+
+            <View style={{ marginTop: 18, padding: 16, borderRadius: 18, backgroundColor: '#1B2220', borderWidth: 1, borderColor: '#2E4D3B' }}>
+              <Text style={{ color: theme.colors.muted, fontSize: 12, fontWeight: '800' }}>INVITE CODE</Text>
+              <Text style={{ color: theme.colors.text, fontSize: 26, fontWeight: '900', letterSpacing: 2, marginTop: 6 }}>{createdGroup.invite_code}</Text>
+              <Text style={{ color: theme.colors.muted, marginTop: 8 }}>
+                ₦{Number(amount || 0).toLocaleString()} {frequency.toLowerCase()} contributions • {members} slots
+              </Text>
+            </View>
+
+            <View style={{ marginTop: 18, flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity onPress={() => navigation.replace('GroupDetail', { groupId: createdGroup.id })} style={{ flex: 1, height: 54, borderRadius: 16, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: theme.colors.white, fontWeight: '900' }}>Open Circle</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={shareInvite} style={{ flex: 1, height: 54, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: theme.colors.text, fontWeight: '900' }}>Share Invite</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              onPress={() => {
+                setCreatedGroup(null);
+                setName('');
+                setDescription('');
+                setAmount('');
+                setFrequency('WEEKLY');
+                setMembers(12);
+              }}
+              style={{ marginTop: 12, height: 48, borderRadius: 14, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: theme.colors.muted, fontWeight: '800' }}>Create Another Circle</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    );
   }
 
   return (
@@ -176,6 +237,19 @@ export default function CreateCircleScreen({ navigation }: Props) {
           </View>
         </View>
 
+        <View style={{ marginTop: 16, borderRadius: 18, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, padding: 16 }}>
+          <Text style={{ color: theme.colors.text, fontSize: 16, fontWeight: '900' }}>Review</Text>
+          <Text style={{ color: theme.colors.muted, marginTop: 6, lineHeight: 20 }}>
+            Circle starts tomorrow, so members have a full cycle window to join before the first contribution is due.
+          </Text>
+          <View style={{ marginTop: 12, gap: 8 }}>
+            <ReviewRow label="Name" value={name.trim() || 'Untitled circle'} />
+            <ReviewRow label="Contribution" value={`₦${Number(amount || 0).toLocaleString()} / ${frequency.toLowerCase()}`} />
+            <ReviewRow label="Capacity" value={`${members} members`} />
+            <ReviewRow label="Projected pot" value={`₦${total.toLocaleString()}.00`} />
+          </View>
+        </View>
+
         {creating ? (
           <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 18 }} />
         ) : (
@@ -190,6 +264,15 @@ export default function CreateCircleScreen({ navigation }: Props) {
 
 function Label({ label }: { label: string }) {
   return <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '700', marginTop: 16 }}>{label}</Text>;
+}
+
+function ReviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 12 }}>
+      <Text style={{ color: theme.colors.muted, fontSize: 13, fontWeight: '700' }}>{label}</Text>
+      <Text style={{ color: theme.colors.text, fontSize: 13, fontWeight: '800', textAlign: 'right', flexShrink: 1 }}>{value}</Text>
+    </View>
+  );
 }
 
 function Field(props: any) {

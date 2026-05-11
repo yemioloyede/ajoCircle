@@ -1,11 +1,40 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { View, Text, FlatList, RefreshControl, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Card, Pill, SectionHeader } from '../components/ui';
 import { api } from '../api/client';
 import { theme } from '../theme';
 
-export default function NotificationsScreen() {
+interface Props {
+  navigation: any;
+}
+
+type Filter = 'ALL' | 'UNREAD' | 'READ';
+
+function getNotificationTarget(type: string) {
+  const normalized = String(type || '').toUpperCase();
+  if (normalized.includes('KYC')) {
+    return { route: 'Profile', params: { screen: 'KYC' } };
+  }
+  if (normalized.includes('PAYOUT')) {
+    return { route: 'Wallet', params: { screen: 'PayoutHistory' } };
+  }
+  if (normalized.includes('CONTRIBUTION')) {
+    return { route: 'Wallet', params: { screen: 'ContributionHistory' } };
+  }
+  if (normalized.includes('GROUP')) {
+    return { route: 'Home', params: { screen: 'Groups' } };
+  }
+  return null;
+}
+
+const FILTERS: Array<{ label: string; value: Filter }> = [
+  { label: 'All', value: 'ALL' },
+  { label: 'Unread', value: 'UNREAD' },
+  { label: 'Read', value: 'READ' },
+];
+
+export default function NotificationsScreen({ navigation }: Props) {
   const [items, setItems] = useState<any[]>([]);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -13,6 +42,7 @@ export default function NotificationsScreen() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [filter, setFilter] = useState<Filter>('ALL');
   const limit = 30;
 
   async function load(reset = false) {
@@ -49,6 +79,12 @@ export default function NotificationsScreen() {
 
   useEffect(() => { load(true).finally(() => setLoading(false)); }, []);
 
+  const visibleItems = useMemo(() => {
+    if (filter === 'UNREAD') return items.filter(item => !item.is_read);
+    if (filter === 'READ') return items.filter(item => item.is_read);
+    return items;
+  }, [items, filter]);
+
   async function markRead(id: string) {
     await api(`/api/notifications/${id}/read`, { method: 'PATCH' }).catch(() => {});
     setItems(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
@@ -59,6 +95,17 @@ export default function NotificationsScreen() {
     await api('/api/notifications/read-all', { method: 'PATCH' }).catch(() => {});
     setItems(prev => prev.map(n => ({ ...n, is_read: true })));
     setUnread(0);
+  }
+
+  async function openNotification(item: any) {
+    if (!item.is_read) {
+      await markRead(item.id);
+    }
+
+    const target = getNotificationTarget(item.type);
+    if (target) {
+      navigation.navigate(target.route, target.params);
+    }
   }
 
   if (loading) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}><ActivityIndicator color={theme.colors.primary} size="large" /></View>;
@@ -74,24 +121,37 @@ export default function NotificationsScreen() {
           <Text style={{ color: theme.colors.muted, lineHeight: 20 }}>
             Stay on top of contribution reminders, payout approvals, and group activity.
           </Text>
-          {unread > 0 && (
+          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: theme.spacing.md }}>
+            {FILTERS.map(item => (
+              <TouchableOpacity key={item.value} onPress={() => setFilter(item.value)}>
+                <Pill label={item.label} tone={filter === item.value ? 'primary' : 'secondary'} />
+              </TouchableOpacity>
+            ))}
+          </View>
+          {unread > 0 ? (
             <TouchableOpacity onPress={markAllRead} style={{ marginTop: theme.spacing.sm }}>
               <Pill label="Mark all read" tone="primary" />
             </TouchableOpacity>
-          )}
+          ) : null}
         </Card>
       }
-      data={items}
+      data={visibleItems}
       keyExtractor={item => item.id}
       renderItem={({ item }) => (
-        <TouchableOpacity onPress={() => !item.is_read && markRead(item.id)}>
-          <Card>
+        <TouchableOpacity onPress={() => openNotification(item)}>
+          <Card style={!item.is_read ? { borderColor: theme.colors.primary, backgroundColor: '#121913' } : undefined}>
             <View style={{ flexDirection: 'row', gap: 10 }}>
               {!item.is_read && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: theme.colors.primary, marginTop: 6 }} />}
               <View style={{ flex: 1 }}>
-                <Text style={{ fontWeight: item.is_read ? '600' : '900', color: theme.colors.text }}>{item.title}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <Text style={{ fontWeight: item.is_read ? '600' : '900', color: theme.colors.text, flex: 1 }}>{item.title}</Text>
+                  <Text style={{ color: theme.colors.mutedSoft, fontSize: 11, fontWeight: '800' }}>{String(item.type || 'UPDATE').replace(/_/g, ' ')}</Text>
+                </View>
                 <Text style={{ color: theme.colors.muted, fontSize: 13, marginTop: 2, lineHeight: 18 }}>{item.body}</Text>
                 <Text style={{ color: theme.colors.mutedSoft, fontSize: 11, marginTop: 4 }}>{new Date(item.created_at).toLocaleString()}</Text>
+                <Text style={{ color: theme.colors.primary, fontSize: 12, fontWeight: '800', marginTop: 6 }}>
+                  {getNotificationTarget(item.type) ? 'Open related task' : 'Tap to mark as read'}
+                </Text>
               </View>
             </View>
           </Card>
@@ -101,7 +161,7 @@ export default function NotificationsScreen() {
       onEndReachedThreshold={0.5}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.colors.primary} />}
       ListFooterComponent={loadingMore ? <ActivityIndicator color={theme.colors.primary} style={{ marginVertical: 12 }} /> : null}
-      ListEmptyComponent={<Card><Text style={{ color: theme.colors.muted, textAlign: 'center' }}>No notifications.</Text></Card>}
+      ListEmptyComponent={<Card><Text style={{ color: theme.colors.muted, textAlign: 'center' }}>No notifications for this view.</Text></Card>}
     />
     </SafeAreaView>
   );

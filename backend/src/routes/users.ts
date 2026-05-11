@@ -3,7 +3,7 @@ import { requireAuth } from '../middleware/auth';
 import { z } from 'zod';
 import { query } from '../config/db';
 import { encrypt, decrypt } from '../utils/security';
-import { resolveBank, createTransferRecipient } from '../services/paystack';
+import { resolveBank, createTransferRecipient, listBanks } from '../services/paystack';
 import { audit, createNotification } from '../services/audit';
 
 const r = Router();
@@ -65,6 +65,11 @@ r.get('/bank-accounts', async (req, res) => {
     [req.user!.id]
   );
   res.json({ accounts: rows.rows });
+});
+
+r.get('/banks', async (_req, res) => {
+  const banks = await listBanks();
+  res.json({ banks });
 });
 
 r.post('/bank-accounts', async (req, res) => {
