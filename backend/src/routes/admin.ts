@@ -54,6 +54,45 @@ r.get('/users/:id', async (req, res) => {
   res.json({ user: user.rows[0], bankAccounts: bankAccounts.rows, contributions: contributions.rows, kyc: kyc.rows[0] ?? null });
 });
 
+r.patch('/users/:id/profile', async (req, res) => {
+  const phoneSchema = z.string().regex(/^(\+?234|0)[0-9]{10}$/, 'Invalid Nigerian phone number');
+  const s = z.object({
+    fullName: z.string().min(2).max(100),
+    email: z.string().email().max(200),
+    phone: phoneSchema,
+  }).parse(req.body);
+
+  const id = String(req.params.id);
+  const existing = await query('select id, full_name, email, phone from users where id=$1', [id]);
+  if (!existing.rowCount) return res.status(404).json({ error: 'User not found' });
+
+  const email = s.email.toLowerCase().trim();
+  const phone = s.phone.trim();
+  const fullName = s.fullName.trim();
+
+  const dup = await query(
+    'select id from users where (email=$1 or phone=$2) and id<>$3 limit 1',
+    [email, phone, id]
+  );
+  if (dup.rowCount) return res.status(409).json({ error: 'Email or phone already used by another user' });
+
+  await query(
+    'update users set full_name=$1, email=$2, phone=$3, updated_at=now() where id=$4',
+    [fullName, email, phone, id]
+  );
+
+  await audit(req.user!.id, 'USER_PROFILE_UPDATED', 'USER', id, {
+    details: `Admin ${req.user!.id} updated profile for user ${id}`,
+    targetUserId: id,
+    fullName,
+    email,
+    phone,
+  }, req);
+
+  const updated = await query('select id,full_name,email,phone,role,kyc_status,status,created_at from users where id=$1', [id]);
+  res.json({ message: 'User profile updated', user: updated.rows[0] });
+});
+
 r.post('/users/:id/freeze', async (req, res) => {
   await query("update users set status='FROZEN', updated_at=now() where id=$1", [req.params.id]);
   await audit(req.user!.id, 'USER_FROZEN', 'USER', req.params.id, {

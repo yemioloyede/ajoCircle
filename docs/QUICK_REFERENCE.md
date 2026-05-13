@@ -191,7 +191,7 @@ Next Month (Jun 1+)   → Phase 2 LAUNCH (providers, KYC, notifications)
 
 **Neon Database Connection:**
 ```
-postgresql://neondb_owner:npg_4wh7yABCxrtF@ep-wandering-water-aprztlln-pooler.c-7.us-east-1.aws.neon.tech/neondb
+postgresql://<user>:<password>@<host>/neondb
 ```
 
 **Git Baseline Commit:**

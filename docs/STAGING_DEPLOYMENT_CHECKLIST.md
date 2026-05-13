@@ -29,7 +29,7 @@ cp backend/.env backend/.env.staging
 # Option B: Create from scratch
 cat > backend/.env.staging << 'EOF'
 # Database - Neon Production Connection
-DATABASE_URL=postgresql://neondb_owner:npg_4wh7yABCxrtF@ep-wandering-water-aprztlln-pooler.c-7.us-east-1.aws.neon.tech/neondb
+DATABASE_URL=postgresql://<user>:<password>@<host>/neondb
 
 # Payment Providers - Use SANDBOX/TEST credentials
 PAYSTACK_SECRET_KEY=sk_test_YOUR_KEY_HERE

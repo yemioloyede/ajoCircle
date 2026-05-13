@@ -26,13 +26,13 @@ Create `.env.staging` in backend root:
 
 ```env
 # Database
-DATABASE_URL=postgresql://<user>:<password>@<host>/neondb
+DATABASE_URL=postgresql://<user>:<password>@<host>/<dbname>
 
 # Payment Providers
-PAYSTACK_SECRET_KEY=<your-secret-key>
-PAYSTACK_PUBLIC_KEY=<your-public-key>
-STRIPE_SECRET_KEY=<your-secret-key>
-STRIPE_PUBLIC_KEY=<your-public-key>
+PAYSTACK_SECRET_KEY=<your-paystack-secret-key>
+PAYSTACK_PUBLIC_KEY=<your-paystack-public-key>
+STRIPE_SECRET_KEY=<your-stripe-secret-key>
+STRIPE_PUBLIC_KEY=<your-stripe-public-key>
 
 # Service Keys
 JWT_SECRET=your-long-random-jwt-secret-min-32-chars

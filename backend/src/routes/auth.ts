@@ -12,7 +12,7 @@ const r = Router();
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: env.nodeEnv === 'production' ? 20 : 200,
   message: { error: 'Too many attempts, please try again in 15 minutes' },
   standardHeaders: true,
   legacyHeaders: false,

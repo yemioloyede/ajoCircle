@@ -9,9 +9,9 @@ interface Props {
 }
 
 const frequencies = [
-  { label: '📅 Daily', value: 'DAILY' },
-  { label: '📅 Weekly', value: 'WEEKLY' },
-  { label: '📅 Monthly', value: 'MONTHLY' },
+  { label: 'Daily', value: 'DAILY' },
+  { label: 'Weekly', value: 'WEEKLY' },
+  { label: 'Monthly', value: 'MONTHLY' },
 ];
 
 export default function CreateCircleScreen({ navigation }: Props) {
@@ -19,9 +19,12 @@ export default function CreateCircleScreen({ navigation }: Props) {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [frequency, setFrequency] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY'>('WEEKLY');
+  const [frequencyOpen, setFrequencyOpen] = useState(false);
   const [members, setMembers] = useState(12);
   const [creating, setCreating] = useState(false);
   const [createdGroup, setCreatedGroup] = useState<any>(null);
+
+  const selectedFrequencyLabel = frequencies.find(item => item.value === frequency)?.label || 'Select frequency';
 
   const total = useMemo(() => {
     const amt = Number(amount) || 0;
@@ -164,26 +167,61 @@ export default function CreateCircleScreen({ navigation }: Props) {
         <Text style={{ color: theme.colors.muted, fontSize: 14, marginTop: 8 }}>Amount each member pays per cycle</Text>
 
         <Label label="How often does everyone pay?" />
-        <View style={{ gap: 10, marginTop: 10 }}>
-          {frequencies.map(item => (
-            <TouchableOpacity
-              key={item.value}
-              onPress={() => setFrequency(item.value as any)}
-              style={{
-                height: 56,
-                borderRadius: 16,
-                borderWidth: 2,
-                borderColor: frequency === item.value ? theme.colors.primary : theme.colors.border,
-                backgroundColor: frequency === item.value ? '#1C2B1E' : theme.colors.surface,
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexDirection: 'row',
-              }}>
-              <Text style={{ color: frequency === item.value ? theme.colors.primary : theme.colors.muted, fontWeight: '800', fontSize: 15 }}>{item.label}</Text>
-              {frequency === item.value && <Text style={{ color: theme.colors.primary, marginLeft: 8, fontSize: 15 }}>✓</Text>}
-            </TouchableOpacity>
-          ))}
+        <View style={{ marginTop: 10 }}>
+          <TouchableOpacity
+            onPress={() => setFrequencyOpen(prev => !prev)}
+            style={{
+              height: 56,
+              borderRadius: 16,
+              borderWidth: 1,
+              borderColor: theme.colors.border,
+              backgroundColor: theme.colors.surface,
+              paddingHorizontal: 16,
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexDirection: 'row',
+            }}>
+            <View style={{ flex: 1, paddingRight: 12 }}>
+              <Text numberOfLines={1} style={{ color: theme.colors.text, fontWeight: '800', fontSize: 15 }}>
+                {selectedFrequencyLabel}
+              </Text>
+            </View>
+            <Ionicons name={frequencyOpen ? 'chevron-up' : 'chevron-down'} size={18} color={theme.colors.muted} />
+          </TouchableOpacity>
+
+          {frequencyOpen ? (
+            <View style={{ marginTop: 10, borderRadius: 16, borderWidth: 1, borderColor: theme.colors.border, backgroundColor: theme.colors.surface, overflow: 'hidden' }}>
+              {frequencies.map(item => {
+                const active = frequency === item.value;
+                return (
+                  <TouchableOpacity
+                    key={item.value}
+                    onPress={() => {
+                      setFrequency(item.value as any);
+                      setFrequencyOpen(false);
+                    }}
+                    style={{
+                      height: 54,
+                      paddingHorizontal: 16,
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexDirection: 'row',
+                      borderTopWidth: item.value === 'DAILY' ? 0 : 1,
+                      borderTopColor: theme.colors.border,
+                      backgroundColor: active ? '#1C2B1E' : theme.colors.surface,
+                    }}>
+                    <Text style={{ color: active ? theme.colors.primary : theme.colors.muted, fontWeight: '800', fontSize: 15 }}>{item.label}</Text>
+                    {active ? <Text style={{ color: theme.colors.primary, fontSize: 15 }}>✓</Text> : null}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ) : null}
         </View>
+
+        <Text style={{ color: theme.colors.mutedSoft, fontSize: 12, marginTop: 8 }}>
+          Current selection: {selectedFrequencyLabel}
+        </Text>
 
         <Text style={{ color: theme.colors.text, fontSize: 20, fontWeight: '900', marginTop: 24 }}>How many people join?</Text>
 

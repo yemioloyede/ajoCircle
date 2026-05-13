@@ -8,6 +8,8 @@
     "dev:backend": "npm run dev --prefix backend",
     "dev:admin": "npm run dev --prefix apps/admin",
     "dev:mobile": "npm run start --prefix apps/mobile",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
     "build:web": "next build",
     "build:backend": "npm run build --prefix backend",
     "build:admin": "npm run build --prefix apps/admin",
@@ -21,5 +23,8 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "typescript": "latest"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.2"
   }
 }

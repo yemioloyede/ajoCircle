@@ -187,7 +187,7 @@ Seeded 22 payment_provider_configs records (was missing from initial migration).
 
 **Connection String (Pooler):**
 ```
-postgresql://neondb_owner:npg_4wh7yABCxrtF@ep-wandering-water-aprztlln-pooler.c-7.us-east-1.aws.neon.tech/neondb
+postgresql://<user>:<password>@<host>/neondb
 ```
 
 **Project:** ajoCircle (lively-boat-28241243)  
