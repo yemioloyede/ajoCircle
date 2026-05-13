@@ -186,14 +186,6 @@ export default function Page() {
                 value={profile.phone}
                 onChange={e => setProfile(prev => ({ ...prev, phone: e.target.value }))}
               />
-              <button
-                className="btn"
-                onClick={saveProfile}
-                disabled={!profile.fullName || !profile.email || !profile.phone}
-                style={{ width: 'fit-content' }}
-              >
-                Save Profile
-              </button>
             </div>
             <p style={{ color: '#888', fontSize: 13, marginBottom: 4 }}>Change role:</p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
@@ -203,6 +195,15 @@ export default function Page() {
                   {role}
                 </button>
               ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+              <button
+                className="btn"
+                onClick={saveProfile}
+                disabled={!profile.fullName || !profile.email || !profile.phone}
+              >
+                Save Profile
+              </button>
             </div>
             <button className="btn" style={{ background: '#888' }} onClick={() => setSelected(null)}>Close</button>
           </div>
