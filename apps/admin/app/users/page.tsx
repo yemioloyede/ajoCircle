@@ -196,7 +196,7 @@ export default function Page() {
                 </button>
               ))}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
               <button
                 className="btn"
                 onClick={saveProfile}
@@ -204,8 +204,8 @@ export default function Page() {
               >
                 Save Profile
               </button>
+              <button className="btn" style={{ background: '#888' }} onClick={() => setSelected(null)}>Close</button>
             </div>
-            <button className="btn" style={{ background: '#888' }} onClick={() => setSelected(null)}>Close</button>
           </div>
         </div>
       )}
