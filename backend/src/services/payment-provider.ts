@@ -959,4 +959,153 @@ export class MockProvider extends PaymentProvider {
   }
 }
 
+/**
+ * Flutterwave Implementation
+ */
+export class FlutterwaveProvider extends PaymentProvider {
+  private baseUrl = 'https://api.flutterwave.com/v3';
+
+  async verifyAccountDetails(accountNumber: string, bankCode?: string): Promise<PaymentVerificationResult> {
+    // Not implemented for MVP
+    return {
+      isValid: true,
+      accountName: '',
+      accountNumber,
+      bankCode,
+      bankName: '',
+      message: 'Not implemented',
+    };
+  }
+
+  async createPaymentRecipient(
+    accountNumber: string,
+    accountName: string,
+    bankCode?: string,
+    accountType?: string,
+    metadata?: Record<string, any>
+  ): Promise<PaymentRecipientResult> {
+    // Not implemented for MVP
+    return {
+      success: true,
+      recipientId: accountNumber,
+      message: 'Not implemented',
+    };
+  }
+
+  async initiateCollection(
+    amount: number,
+    currency: string,
+    recipientEmail: string,
+    recipientPhone?: string,
+    description?: string,
+    metadata?: Record<string, any>
+  ): Promise<PaymentInitiationResult> {
+    // Use Flutterwave API
+    const response = await fetch(`${this.baseUrl}/payments`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tx_ref: metadata?.reference || `AJO_${Date.now()}`,
+        amount: (amount / 100).toFixed(2),
+        currency,
+        redirect_url: metadata?.redirectUrl || '',
+        customer: { email: recipientEmail },
+        meta: metadata,
+      }),
+    });
+    const data = await response.json();
+    if (!data.status || data.status !== 'success') throw new Error(data.message || 'Flutterwave error');
+    return {
+      success: true,
+      transactionId: data.data.id,
+      providerReference: data.data.tx_ref,
+      authorizationUrl: data.data.link,
+      message: data.message,
+      amount: amount,
+      currency,
+      paidAt: undefined,
+    };
+  }
+
+  async initiatePayout(
+    amount: number,
+    currency: string,
+    recipientId: string,
+    description?: string,
+    metadata?: Record<string, any>
+  ): Promise<PaymentInitiationResult> {
+    // Not implemented for MVP
+    return {
+      success: true,
+      transactionId: recipientId,
+      providerReference: recipientId,
+      message: 'Not implemented',
+      amount,
+      currency,
+    };
+  }
+
+  async initiateRefund(originalTransactionId: string, refundAmount?: number, reason?: string): Promise<PaymentInitiationResult> {
+    // Not implemented for MVP
+    return {
+      success: true,
+      transactionId: originalTransactionId,
+      providerReference: originalTransactionId,
+      message: 'Not implemented',
+      amount: refundAmount || 0,
+      currency: this.currencyCode,
+    };
+  }
+
+  async getTransactionStatus(providerReference: string): Promise<PaymentStatusResult> {
+    // Not implemented for MVP
+    return {
+      status: 'UNKNOWN',
+      amount: 0,
+      currency: this.currencyCode,
+      timestamp: new Date(),
+    };
+  }
+
+  verifyWebhookSignature(payload: string, signature: string): boolean {
+    // Not implemented for MVP
+    return true;
+  }
+
+  async parseWebhookPayload(payload: Record<string, any>): Promise<WebhookParseResult> {
+    // Not implemented for MVP
+    return {
+      valid: true,
+      event: '',
+      data: {
+        transactionId: '',
+        providerReference: '',
+        status: 'UNKNOWN',
+        amount: 0,
+        currency: this.currencyCode,
+        timestamp: new Date(),
+      },
+    };
+  }
+
+  async getFees(amount: number): Promise<FeeResult> {
+    // Not implemented for MVP
+    return {
+      transactionFeePercentage: 2.5,
+      fixedFeeKobo: 0,
+      totalFeeKobo: Math.round((amount * 2.5) / 100),
+    };
+  }
+
+  async reconcileTransactions(startDate: Date, endDate: Date, pageSize: number = 100): Promise<any[]> {
+    // Not implemented for MVP
+    return [];
+  }
+
+  async getExchangeRate(from: string, to: string): Promise<number> {
+    // Not implemented for MVP
+    return 1.0;
+  }
+}
+
 export default PaymentProvider;

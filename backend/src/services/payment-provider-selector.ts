@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import { PaymentProvider, PaystackProvider, StripeProvider, MockProvider } from './payment-provider';
+import { PaymentProvider, PaystackProvider, StripeProvider, FlutterwaveProvider, MockProvider } from './payment-provider';
 import { getCountryConfigService } from './country-config';
 import { CacheClient, InMemoryCache } from './cache';
 
@@ -109,8 +109,7 @@ export class PaymentProviderSelector {
         case 'stripe':
           return new StripeProvider(providerName, countryCode, currencyCode, apiKey, webhookSecret, this.db);
         case 'flutterwave':
-          // Would implement FlutterwaveProvider here
-          return new MockProvider(providerName, countryCode, currencyCode, apiKey, webhookSecret, this.db);
+          return new FlutterwaveProvider(providerName, countryCode, currencyCode, apiKey, webhookSecret, this.db);
         case 'mpesa':
           // Would implement M-PesaProvider here
           return new MockProvider(providerName, countryCode, currencyCode, apiKey, webhookSecret, this.db);

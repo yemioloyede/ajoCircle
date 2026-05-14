@@ -28,7 +28,8 @@ r.post('/', async (req, res) => {
     frequency: z.enum(['DAILY', 'WEEKLY', 'MONTHLY']),
     contributionAmountKobo: z.number().int().min(100, 'Minimum contribution is ₦1'),
     maxMembers: z.number().int().min(3).max(100),
-    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'startDate must be YYYY-MM-DD'),
+    startDate: z.string().regex(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/, 'startDate must be YYYY-MM-DD'),
+    currency: z.string().length(3).default('NGN'),
   }).parse(req.body);
 
   const start = new Date(s.startDate);
@@ -39,12 +40,22 @@ r.post('/', async (req, res) => {
   const invite = Math.random().toString(36).slice(2, 8).toUpperCase();
   const out = await tx(async (c) => {
     const g = await c.query(
-      'insert into savings_groups(name,frequency,contribution_amount_kobo,max_members,start_date,created_by,invite_code,status) values($1,$2,$3,$4,$5,$6,$7,$8) returning *',
-      [s.name, s.frequency, s.contributionAmountKobo, s.maxMembers, s.startDate, req.user!.id, invite, 'ACTIVE']
+      'insert into savings_groups(name,frequency,contribution_amount_kobo,max_members,start_date,created_by,invite_code,status,currency) values($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *',
+      [
+        s.name,
+        s.frequency,
+        s.contributionAmountKobo,
+        s.maxMembers,
+        s.startDate,
+        req.user!.id,
+        invite,
+        'ACTIVE',
+        s.currency.toUpperCase(),
+      ]
     );
     const wallet = await c.query(
       "insert into wallets(owner_type, owner_id, currency) values($1,$2,$3) returning *",
-      ['GROUP', g.rows[0].id, 'NGN']
+      ['GROUP', g.rows[0].id, s.currency.toUpperCase()]
     );
     await c.query('update savings_groups set wallet_id=$1 where id=$2', [wallet.rows[0].id, g.rows[0].id]);
     await c.query(
@@ -313,7 +324,7 @@ r.post('/:id/recreate', async (req, res) => {
   const invite = Math.random().toString(36).slice(2, 8).toUpperCase();
   const out = await tx(async (c) => {
     const g = await c.query(
-      'insert into savings_groups(name,frequency,contribution_amount_kobo,max_members,start_date,created_by,invite_code,status) values($1,$2,$3,$4,$5,$6,$7,$8) returning *',
+      'insert into savings_groups(name,frequency,contribution_amount_kobo,max_members,start_date,created_by,invite_code,status,currency) values($1,$2,$3,$4,$5,$6,$7,$8,$9) returning *',
       [
         oldGroup.rows[0].name,
         oldGroup.rows[0].frequency,
@@ -323,11 +334,12 @@ r.post('/:id/recreate', async (req, res) => {
         req.user!.id,
         invite,
         'ACTIVE',
+        oldGroup.rows[0].currency.toUpperCase(),
       ]
     );
     const wallet = await c.query(
       'insert into wallets(owner_type, owner_id, currency) values($1,$2,$3) returning *',
-      ['GROUP', g.rows[0].id, 'NGN']
+      ['GROUP', g.rows[0].id, oldGroup.rows[0].currency.toUpperCase()]
     );
     await c.query('update savings_groups set wallet_id=$1 where id=$2', [wallet.rows[0].id, g.rows[0].id]);
     await c.query(

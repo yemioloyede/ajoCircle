@@ -24,22 +24,36 @@ r.post('/initialize', async (req, res) => {
   );
   if (!g.rowCount) return res.status(404).json({ error: 'Group not found, not active, or you are not an active member' });
 
-  const amount = g.rows[0].contribution_amount_kobo;
+  const group = g.rows[0];
+  const amount = group.contribution_amount_kobo;
+  const currency = group.currency || 'NGN';
   if (amount < MIN_CONTRIBUTION_KOBO) {
     return res.status(400).json({ error: 'Contribution amount is below the minimum allowed' });
   }
 
   const ref = 'AJO_' + uuid().replace(/-/g, '');
   const c = await query(
-    'insert into contributions(group_id,user_id,amount_kobo,status,payment_reference) values($1,$2,$3,$4,$5) returning *',
-    [s.groupId, req.user!.id, amount, 'PENDING', ref]
+    'insert into contributions(group_id,user_id,amount_kobo,status,payment_reference,currency) values($1,$2,$3,$4,$5,$6) returning *',
+    [s.groupId, req.user!.id, amount, 'PENDING', ref, currency]
   );
   const user = await query('select email,full_name from users where id=$1', [req.user!.id]);
-  const pay = await initializePayment(user.rows[0].email, amount, ref, {
-    contributionId: c.rows[0].id,
-    groupId: s.groupId,
-    userId: req.user!.id,
-  });
+
+  // Provider selection
+  let pay;
+  if (currency === 'NGN') {
+    pay = await initializePayment(user.rows[0].email, amount, ref, {
+      contributionId: c.rows[0].id,
+      groupId: s.groupId,
+      userId: req.user!.id,
+    });
+  } else {
+    const fw = require('../services/flutterwave');
+    pay = await fw.initializePayment(user.rows[0].email, amount, currency, ref, {
+      contributionId: c.rows[0].id,
+      groupId: s.groupId,
+      userId: req.user!.id,
+    });
+  }
   await audit(req.user!.id, 'CONTRIBUTION_INITIALIZED', 'CONTRIBUTION', c.rows[0].id, { reference: ref }, req);
   res.json({ contribution: c.rows[0], payment: pay });
 });

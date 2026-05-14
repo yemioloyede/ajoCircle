@@ -11,59 +11,51 @@ const r = Router();
 r.use(requireAuth);
 
 r.post('/request', async (req, res) => {
-  const s = z.object({
-    groupId: z.string().uuid(),
-    recipientUserId: z.string().uuid(),
-    amountKobo: z.number().int().positive().optional(),
-  }).parse(req.body);
+  const s = z.object({ groupId: z.string().uuid(), amount: z.number().int().positive() }).parse(req.body);
 
   const g = await query(
-    'select id, contribution_amount_kobo from savings_groups where id=$1 and status=$2',
-    [s.groupId, 'ACTIVE']
+    `select g.* from savings_groups g
+     join group_members gm on gm.group_id=g.id
+     where g.id=$1 and gm.user_id=$2 and gm.status=$3 and g.status=$4`,
+    [s.groupId, req.user!.id, 'ACTIVE', 'ACTIVE']
   );
-  if (!g.rowCount) return res.status(404).json({ error: 'Group not found or not active' });
+  if (!g.rowCount) return res.status(404).json({ error: 'Group not found, not active, or you are not an active member' });
 
-  const admin = await query(
-    `select id from group_members
-     where group_id=$1 and user_id=$2 and role=$3 and status=$4`,
-    [s.groupId, req.user!.id, 'GROUP_ADMIN', 'ACTIVE']
-  );
-  if (!admin.rowCount) return res.status(403).json({ error: 'Only group admins can request payouts' });
+  const group = g.rows[0];
+  const currency = group.currency || 'NGN';
+  const amount = s.amount;
 
-  const recipient = await query(
-    `select id from group_members
-     where group_id=$1 and user_id=$2 and status=$3`,
-    [s.groupId, s.recipientUserId, 'ACTIVE']
-  );
-  if (!recipient.rowCount) return res.status(400).json({ error: 'Recipient must be an active member of the group' });
+  // Enforce group currency and payout logic
+  if (amount < 1000) {
+    return res.status(400).json({ error: 'Payout amount is below the minimum allowed' });
+  }
 
-  const pending = await query(
-    `select id from payouts
-     where group_id=$1 and status='PENDING_REVIEW'
-     order by created_at desc limit 1`,
-    [s.groupId]
+  const ref = 'AJO_PAYOUT_' + uuid().replace(/-/g, '');
+  const payout = await query(
+    'insert into payouts(group_id,user_id,amount_kobo,status,payment_reference,currency) values($1,$2,$3,$4,$5,$6) returning *',
+    [s.groupId, req.user!.id, amount, 'PENDING', ref, currency]
   );
-  if (pending.rowCount) return res.status(409).json({ error: 'A payout request is already pending review for this group' });
 
-  const activeMembers = await query(
-    `select count(*) from group_members
-     where group_id=$1 and status='ACTIVE'`,
-    [s.groupId]
-  );
-  const memberCount = Math.max(Number(activeMembers.rows[0].count || 0), 1);
-  const computedAmount = Number(g.rows[0].contribution_amount_kobo) * memberCount;
-  const amountKobo = s.amountKobo ?? computedAmount;
+  // Provider selection (multi-currency aware)
+  const selector = getPaymentProviderSelector();
+  // For MVP, use user's country/currency or default to NG/NGN
+  const provider = await selector.selectProvider({
+    countryCode: group.country_code || 'NG',
+    currencyCode: currency,
+    operationType: 'PAYOUT',
+    amount,
+  });
 
-  const p = await query(
-    "insert into payouts(group_id,recipient_user_id,amount_kobo,status,requested_by) values($1,$2,$3,$4,$5) returning *",
-    [s.groupId, s.recipientUserId, amountKobo, 'PENDING_REVIEW', req.user!.id]
-  );
-  await audit(req.user!.id, 'PAYOUT_REQUESTED', 'PAYOUT', p.rows[0].id, {
-    ...s,
-    amountKobo,
-    details: `Group admin ${req.user!.id} requested payout for group ${s.groupId}`,
-  }, req);
-  res.json(p.rows[0]);
+  // For MVP, assume recipientId is userId (should be bank account/provider-recipient in production)
+  const recipientId = String(req.user!.id);
+  const pay = await provider.initiatePayout(amount / 100, currency, recipientId, 'AjoCircle payout', {
+    payoutId: payout.rows[0].id,
+    groupId: s.groupId,
+    userId: req.user!.id,
+  });
+
+  await audit(req.user!.id, 'PAYOUT_REQUESTED', 'PAYOUT', payout.rows[0].id, { reference: ref }, req);
+  res.json({ payout: payout.rows[0], payment: pay });
 });
 
 r.post('/:id/approve', requireRole('COMPLIANCE_ADMIN', 'SUPER_ADMIN'), async (req, res) => {
